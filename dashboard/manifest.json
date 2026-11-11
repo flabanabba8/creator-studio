@@ -3,5 +3,9 @@
   "label": "Creator Studio: Captions",
   "version": "0.1.0",
   "description": "Create captions from recordings, listen and review the words and timing, or repair an existing subtitle file.",
-  "api": "plugin_api.py"
+  "api": "plugin_api.py",
+  "tab": {
+    "path": "/creator-studio",
+    "hidden": true
+  }
 }

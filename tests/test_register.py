@@ -77,3 +77,13 @@ class RegisterTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DashboardManifestTest(unittest.TestCase):
+    """The dashboard has an API route only: no built page, so the tab must stay hidden (a visible tab shows a dead page)."""
+    def test_tab_hidden_without_built_script(self):
+        import json, pathlib
+        root = pathlib.Path(__file__).resolve().parents[1] / 'dashboard'
+        manifest = json.loads((root / 'manifest.json').read_text())
+        if not (root / manifest.get('entry', 'dist/index.js')).is_file():
+            self.assertTrue(manifest.get('tab', {}).get('hidden'))

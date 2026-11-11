@@ -7,7 +7,7 @@ Turn a research topic into a narrated video, creating its stills, illustrations,
 **At a glance**
 
 - **Install:** `hermes plugins install flabanabba8/youtube-video-studio`, then `hermes plugins enable youtube-video-studio`.
-- **Needs:** Hermes 0.22 or later, FFmpeg, Python Pillow (installed from the manifest). Speech and pictures come from tools you choose (for example Gemini speech through your own Google Cloud login, or an image tool already in your Hermes).
+- **Needs:** Hermes 0.22.3 or later, FFmpeg, Python Pillow (installed from the manifest). Speech and pictures come from tools you choose (for example Gemini speech with a Google sign-in held by Hermes, or an image tool already in your Hermes).
 - **Internet:** Research uses your Hermes web tools and a page reader; Gemini narration, if you choose it, sends narration text to Google. Rendering is local. Nothing is uploaded or published.
 - **Limits:** Linux is the only platform checked. It makes the video file; it does not upload it to YouTube. Picture and narration quality depend on the tools you select.
 - **Credits:** Narration and images come from the services you choose; their terms apply. Licence: GPL-3.0-or-later.
@@ -130,7 +130,7 @@ Skill and wiki now say how a returning session finds its project, attaches exist
 
 ## 0.4.0 (2026-11-10)
 
-- Gemini 3.8 Flash TTS (Vertex AI, Application Default Credentials) is a supported narration route and the default when set up: `youtube_start_topic` reports `gemini_speech` (available or the reason, 30 named voices with gender and trait), `youtube_narrate` takes `engine`, `voice` and `max_usd` (default 0.50 USD spend guard), one request per spoken part (100 words or fewer), no retries, raw takes kept, usage returned and stored in `gemini-usage.json`. The Google Cloud project is read from the machine's own configuration (environment or gcloud) and is never returned or written; error text shows `<project>`. The local-server route is unchanged.
+- Gemini 3.8 Flash TTS (Vertex AI, Google sign-in held by Hermes) is a supported narration route and the default when set up: `youtube_start_topic` reports `gemini_speech` (available or the reason, 30 named voices with gender and trait), `youtube_narrate` takes `engine`, `voice` and `max_usd` (default 0.50 USD spend guard), one request per spoken part (100 words or fewer), no retries, raw takes kept, usage returned and stored in `gemini-usage.json`. The Google Cloud project is read from the machine's own configuration (environment or gcloud) and is never returned or written; error text shows `<project>`. The local-server route is unchanged.
 - Re-attaching a picture with a new `review_note` replaces the earlier note; assembly refuses a picture whose note still says "not yet inspected".
 
 ## 0.4.1 (2026-11-10)

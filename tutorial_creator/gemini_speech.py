@@ -1,11 +1,10 @@
-"""Gemini 3.8 Flash TTS narration through Vertex with the user's own Application Default Credentials.
+"""Gemini 3.8 Flash TTS narration through Vertex with a Google sign-in held by Hermes (common/google_signin.py).
 
 One request per cue, no retries of the speech POST, a persistent spend ledger with a guard, and
 no project or credential value ever returned, logged or written to evidence."""
 import base64
 import json
 import re
-import subprocess
 import time
 
 MODELS = ('gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts')
@@ -69,30 +68,37 @@ def voice_options():
     return [{'voice': name, 'gender': g, 'median_pitch_hz': hz, 'trait': t} for name, (g, hz, t) in VOICES.items()]
 
 
+def _signin():
+    """The suite's shared sign-in module (also loadable when this part is imported on its own, as its tests do)."""
+    try:
+        from ..common import google_signin
+        return google_signin
+    except (ImportError, ValueError):
+        import importlib.util, sys
+        from pathlib import Path
+        name = 'creator_studio_google_signin'
+        if name not in sys.modules:
+            spec = importlib.util.spec_from_file_location(name, Path(__file__).resolve().parents[1] / 'common' / 'google_signin.py')
+            module = importlib.util.module_from_spec(spec); sys.modules[name] = module; spec.loader.exec_module(module)
+        return sys.modules[name]
+
+
 def project_id(configured=''):
-    """The Google Cloud project from plugin settings or the machine's own gcloud default. Never printed."""
+    """The Google Cloud project from the plugin setting gemini_project. Never printed."""
     value = configured.strip() if isinstance(configured, str) else ''
-    if not value:
-        try:
-            value = subprocess.run(['gcloud', 'config', 'get-value', 'project'], capture_output=True, text=True, timeout=15).stdout.strip()
-        except (OSError, subprocess.SubprocessError):
-            value = ''
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', value or ''):
-        raise ValueError('No Google Cloud project is configured for Gemini speech (set one in gcloud or plugin settings)')
+        raise ValueError('No Google Cloud project is configured for Gemini speech (set the plugin setting gemini_project)')
     return value
 
 
 def availability():
     """Setup facts for the model, without contacting Google or revealing the project."""
+    google_signin = _signin()
     result = {'route': 'gemini', 'models': list(MODELS), 'default_model': DEFAULT_MODEL, 'default_voice': DEFAULT_VOICE,
               'max_usd_default': DEFAULT_MAX_USD, 'voices': voice_options()}
-    try: project_id(); result['project_configured'] = True
-    except ValueError: result['project_configured'] = False
-    try:
-        import google.auth  # noqa: F401
-        result['adc_library'] = True
-    except ImportError:
-        result['adc_library'] = False
+    result['project_configured'] = google_signin.configured_project() is not None
+    result['hermes_sign_in_supported'] = google_signin.helper_available()
+    result['sign_in'] = 'Hermes holds the Google sign-in; if narration reports "not signed in", run: ' + google_signin.SIGN_IN
     return result
 
 
@@ -112,8 +118,8 @@ def _save(path, ledger):
     temporary.replace(path)
 
 
-def synthesize(text, voice, model, *, project, ledger_path, max_usd=DEFAULT_MAX_USD, transport=None, credentials=None):
-    """Return WAV bytes for one cue. `transport` and `credentials` exist for tests with a mocked network."""
+def synthesize(text, voice, model, *, project, ledger_path, max_usd=DEFAULT_MAX_USD, transport=None):
+    """Return WAV bytes for one cue. Hermes signs the request; `transport` exists for tests with a mocked network."""
     if not isinstance(text, str) or not text.strip() or len(text.encode('utf-16-le')) // 2 > 2000:
         raise ValueError('Gemini speech text must contain 1-2000 UTF-16 code units')
     if voice not in VOICES:
@@ -126,27 +132,27 @@ def synthesize(text, voice, model, *, project, ledger_path, max_usd=DEFAULT_MAX_
     estimate = estimate_usd(text); spent = sum(row['reserved_or_actual_usd'] for row in ledger)
     if spent + estimate > max_usd:
         raise SpeechError('The spending guard: %d earlier cues were recorded with %.4f USD charged or reserved for them; the total spent or reserved is %.4f USD, and this cue was refused without being sent (estimated %.4f USD; projected total %.4f USD exceeds the %.4f USD cap).'  % (sum(r.get('status') == 'received' for r in ledger), sum(r.get('reserved_or_actual_usd',0) for r in ledger if r.get('status') == 'received'), spent, estimate, spent+estimate, max_usd))
-    try:
-        if credentials is None:
-            import google.auth
-            from google.auth.transport.requests import Request
-            credentials = google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform'])[0]
-            if not credentials.valid: credentials.refresh(Request())
-        token = credentials.token
-    except Exception:
-        raise SpeechError('Google credentials could not be refreshed before sending; no speech request sent') from None
     url = f'https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/google/models/{model}:generateContent'
     body = {'contents': [{'role': 'user', 'parts': [{'text': text}]}],
             'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'voice': voice}}}}
-    headers = {'Authorization': 'Bearer ' + token, 'x-goog-user-project': project}
+    headers = {'x-goog-user-project': project}
     row = {'started': time.time(), 'status': 'pending', 'model': model, 'voice': voice, 'reserved_or_actual_usd': estimate}
     ledger.append(row); _save(ledger_path, ledger)
     try:
         if transport is None:
-            import requests
-            transport = lambda u, h, b: requests.post(u, headers=h, json=b, timeout=(60, 240), allow_redirects=False)
-        response = transport(url, headers, body)
-    except Exception:
+            google_signin = _signin()
+            status_code, content = google_signin.post(url, body, project)
+            class _Response:
+                pass
+            response = _Response(); response.status_code = status_code; response.content = content
+            response.json = lambda: json.loads(content)
+        else:
+            response = transport(url, headers, body)
+    except Exception as exc:
+        google_signin = _signin()
+        if isinstance(exc, google_signin.NotSent):
+            ledger.remove(row); _save(ledger_path, ledger)
+            raise SpeechError(str(exc)) from None
         row['status'] = 'unknown'; _save(ledger_path, ledger)
         raise SpeechError('Gemini transport failure; the billed outcome is unknown; no retry was made') from None
     if response.status_code != 200:

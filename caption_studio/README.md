@@ -10,7 +10,7 @@ budget; no particular model, paid service or runtime is selected automatically.
 **At a glance**
 
 - **Install:** `hermes plugins install flabanabba8/caption-repair`, then `hermes plugins enable caption-studio`.
-- **Needs:** Hermes 0.22 or later, FFmpeg, and a speech recognizer you choose (a local command, an imported transcript, or an HTTP service). No model or paid service is selected for you.
+- **Needs:** Hermes 0.22.3 or later, FFmpeg, and a speech recognizer you choose (a local command, an imported transcript, or an HTTP service). No model or paid service is selected for you.
 - **Internet:** Nothing by default. If you select an HTTP recognizer, the audio is sent to that service, only after you confirm; an optional API key is stored by Hermes.
 - **Limits:** Linux is the only platform checked. Draft captions are not proof of accuracy: a recognizer cannot check its own mistakes, so listen or use a second recognizer. Originals are never overwritten.
 - **Credits:** Formerly named Caption Repair. The recognizers you pick bring their own terms. Licence: GPL-3.0-or-later.

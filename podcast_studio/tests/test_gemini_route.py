@@ -21,7 +21,7 @@ class Route(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.calls=[]
         def fake(url,headers,body):
             self.calls.append(body);return 200,json.dumps({'candidates':[{'finishReason':'STOP','content':{'parts':[{'inlineData':{'data':base64.b64encode(wav(1+len(self.calls)*.25)).decode()}}]}}],'usageMetadata':{'promptTokenCount':30,'candidatesTokenCount':200}}).encode()
-        self.p=[mock.patch.object(g,'project',lambda:SECRET),mock.patch.object(g,'access_token',lambda:'t'),mock.patch.object(g,'transport',fake)]
+        self.p=[mock.patch.object(g,'project',lambda:SECRET),mock.patch.object(g,'transport',fake)]
         for x in self.p:x.start()
     def tearDown(self):
         for x in self.p:x.stop()

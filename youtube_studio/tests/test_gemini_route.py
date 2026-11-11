@@ -24,7 +24,7 @@ class Route(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.calls=[]
         def fake(url,headers,body):
             self.calls.append((url,headers,body));return 200,ok_body(1+len(self.calls)*.25)
-        self.patches=[mock.patch.object(g,'project',lambda:SECRET_PROJECT),mock.patch.object(g,'access_token',lambda:'tok'),mock.patch.object(g,'transport',fake)]
+        self.patches=[mock.patch.object(g,'project',lambda:SECRET_PROJECT),mock.patch.object(g,'transport',fake)]
         for p in self.patches:p.start()
     def tearDown(self):
         for p in self.patches:p.stop()
@@ -64,7 +64,8 @@ class Route(unittest.TestCase):
         self.assertEqual(json.loads(led.read_text())[0]['status'],'rejected')
     def test_unavailable_reports_reason_without_project(self):
         stub=mock.MagicMock()
-        with mock.patch.object(g,'project',lambda:None),mock.patch.dict(sys.modules,{'google':stub,'google.auth':stub,'requests':stub}):
+        from cs_t.common import google_signin as gs
+        with mock.patch.object(g,'project',lambda:None),mock.patch.object(gs,'helper_available',lambda:True):
             r=g.available();self.assertFalse(r['available']);self.assertIn('project',r['reason'])
     @unittest.skipUnless(HAVE,'ffmpeg required')
     def test_review_note_is_rewritten_when_the_picture_is_looked_at_and_assembly_requires_it(self):

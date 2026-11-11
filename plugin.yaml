@@ -1,9 +1,29 @@
 name: creator-studio
-version: "0.2.3"
+version: "0.3.0"
 description: "Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, and narrated step-by-step tutorials."
 author: "Creator Studio contributors"
 license: GPL-3.0-or-later
-requires_hermes: ">=0.22.0"
+requires_hermes: ">=0.22.3"
+optional_env:
+  - CAPTION_STUDIO_ASR_KEY
+  - CAPTION_REPAIR_ASR_KEY
+  - name: CREATOR_STUDIO_GOOGLE_CLIENT_ID
+    description: "Only for Gemini narration: the id of your own Google Cloud OAuth client (type Desktop app)."
+    url: "https://console.cloud.google.com/apis/credentials"
+  - name: CREATOR_STUDIO_GOOGLE_CLIENT_SECRET
+    description: "Only for Gemini narration: the secret of that OAuth client. Stored by Hermes."
+    url: "https://console.cloud.google.com/apis/credentials"
+    secret: true
+oauth:
+  - id: google
+    authorize_url: https://accounts.google.com/o/oauth2/v2/auth
+    token_url: https://oauth2.googleapis.com/token
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+    client_id_env: CREATOR_STUDIO_GOOGLE_CLIENT_ID
+    client_secret_env: CREATOR_STUDIO_GOOGLE_CLIENT_SECRET
+    hosts: [aiplatform.googleapis.com]
+    authorize_params: {access_type: offline, prompt: consent}
 python_dependencies:
   - "Pillow==13.0.0"
 provides_tools:
@@ -71,9 +91,6 @@ provides_tools:
   - tutorial_narrate
   - tutorial_step
   - tutorial_frame
-optional_env:
-  - CAPTION_STUDIO_ASR_KEY
-  - CAPTION_REPAIR_ASR_KEY
 config_schema:
   native_image_tool: {type: str, default: "", description: "Optional registered native image-generation tool selected after resource discovery; host owns credentials/model. Main-agent direct image generation plus material_add remains available in other runtimes. No silent fallback."}
   asr_api_key: {type: secret, env: CAPTION_STUDIO_ASR_KEY, required: false, label: "Selected speech service API key", description: "Optional. Used only when you explicitly select an HTTP recognizer with use_api_key. Local commands and imported transcripts need no key. Never paste keys into tool arguments."}
@@ -101,11 +118,11 @@ config_schema:
     type: str
     default: ""
     description: "Transcript of the optional voice reference."
-  narration_backend: {type: str, default: "gemini", choices: [gemini, higgs, local_http, host], description: "gemini = Gemini 3.8 Flash TTS through your own Google Cloud login (default); or a configured compatible local speech HTTP, or an explicitly selected host speech tool."}
+  narration_backend: {type: str, default: "gemini", choices: [gemini, higgs, local_http, host], description: "gemini = Gemini 3.8 Flash TTS with a Google sign-in held by Hermes (default; run hermes auth add creator-studio:google once); or a configured compatible local speech HTTP, or an explicitly selected host speech tool."}
   gemini_voice: {type: str, default: "Achird", description: "Gemini prebuilt voice name; capture_sources lists all 30 with gender, trait and measured pitch."}
   gemini_model: {type: str, default: "gemini-3.8-flash-tts", choices: [gemini-3.8-flash-tts, gemini-3.8-flash-lite-tts], description: "Gemini speech model."}
   gemini_max_usd: {type: str, default: "0.50", description: "Spending guard per tutorial in USD (conservative list rates); a request that could pass it is not sent."}
-  gemini_project: {type: str, default: "", description: "Optional Google Cloud project; empty uses your gcloud default project. Never shown in results or logs."}
+  gemini_project: {type: str, default: "", description: "Google Cloud project used for Gemini narration (required for that route). Never shown in results or logs."}
   host_tts_tool: {type: str, default: "", description: "Registered speech tool selected after capability discovery; host owns model/auth/approvals."}
   host_tts_backend_id: {type: str, default: "", description: "Explicit provider/runtime/model revision identity used in narration cache keys."}
   host_tts_arguments: {type: str, default: "{}", description: "JSON arguments with {text}, {voice}, {model}. No raw credentials."}

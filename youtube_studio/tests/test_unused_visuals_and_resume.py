@@ -46,7 +46,7 @@ class Speech(Base):
     def setUp(self):
         super().setUp();self.calls=[]
         def fake(url,headers,body):self.calls.append(body);return 200,ok_body()
-        for p in(mock.patch.object(g,'project',lambda:'proj-x'),mock.patch.object(g,'access_token',lambda:'t'),mock.patch.object(g,'transport',fake)):p.start();self.addCleanup(p.stop)
+        for p in(mock.patch.object(g,'project',lambda:'proj-x'),mock.patch.object(g,'transport',fake)):p.start();self.addCleanup(p.stop)
     def test_short_line_passes_a_small_guard(self):
         self.assertLess(g.estimate_usd('Hello there, this is a short line.'),0.03)
         self.assertLess(g.estimate_usd('word '*100),0.1)

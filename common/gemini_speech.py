@@ -1,11 +1,9 @@
-"""Gemini 3.8 Flash TTS on Vertex AI as a speech route: Application Default Credentials, one request per part,
-no retries, a spend ledger with a guard. Additive: the local-server route is unchanged. The Google Cloud project
-id comes from the machine's own configuration and is never returned, logged or written into a result."""
+"""Gemini 3.8 Flash TTS on Vertex AI as a speech route: a Google sign-in held by Hermes (see google_signin.py),
+one request per part, no retries, a spend ledger with a guard. Additive: the local-server route is unchanged.
+The Google Cloud project id comes from the plugin setting gemini_project and is never returned, logged or
+written into a result. No credential file of any other tool is read."""
 import base64
 import json
-import os
-import re
-import subprocess
 import time
 from pathlib import Path
 
@@ -47,45 +45,26 @@ class GeminiSpeechError(RuntimeError):
 
 
 def project():
-    """The user's default Google Cloud project, read from the environment or gcloud; None when not configured."""
-    value = os.environ.get('GOOGLE_CLOUD_PROJECT', '').strip()
-    if not value:
-        try:
-            value = subprocess.run(['gcloud', 'config', 'get-value', 'project'], capture_output=True, text=True, timeout=15, stdin=subprocess.DEVNULL).stdout.strip()
-        except Exception:
-            value = ''
-    return value if re.fullmatch(r'[A-Za-z0-9_-]{1,128}', value or '') else None
-
-
-def access_token():
-    import google.auth
-    from google.auth.transport.requests import Request
-    cred = google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform'])[0]
-    if not cred.valid: cred.refresh(Request())
-    return cred.token
+    """The Google Cloud project from the plugin setting gemini_project; None when not configured."""
+    from . import google_signin
+    return google_signin.configured_project()
 
 
 def transport(url, headers, body):
-    import requests
-    response = requests.post(url, headers=headers, json=body, timeout=(60, 240), allow_redirects=False)
-    return response.status_code, response.content
+    """Send one signed request through Hermes; returns (status, content). Raises google_signin.NotSent when nothing left this computer."""
+    from . import google_signin
+    return google_signin.post(url, body, headers['x-goog-user-project'])
 
 
 def available():
     """Read-only check used by the setup tool: no request is sent and no project id or credential is returned."""
-    try:
-        import google.auth  # noqa: F401
-        import requests  # noqa: F401
-    except ImportError:
-        return {'available': False, 'reason': 'The Google auth libraries are not installed in this Hermes runtime.'}
+    from . import google_signin
+    if not google_signin.helper_available():
+        return {'available': False, 'reason': 'This Hermes version has no plugin sign-in support (0.22.3 or later is needed).'}
     if project() is None:
-        return {'available': False, 'reason': 'No default Google Cloud project is configured on this computer.'}
-    try:
-        import google.auth
-        google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform'])
-    except Exception:
-        return {'available': False, 'reason': 'No Application Default Credentials are set up on this computer.'}
+        return {'available': False, 'reason': 'No Google Cloud project is set (plugin setting gemini_project). ' + google_signin.SETUP}
     return {'available': True, 'model': MODEL, 'billing': 'Cloud billing applies (cents per short lesson); the plugin keeps a spend guard and a usage ledger.',
+            'sign_in': 'Hermes holds the Google sign-in; if a request reports "not signed in", run: ' + google_signin.SIGN_IN,
             'voices': [{'name': n, 'gender': g, 'trait': t} for n, (g, t) in VOICES.items()],
             'use': 'youtube_narrate with engine "gemini" and a voice name (the voice is the same on every request)'}
 
@@ -110,22 +89,22 @@ def synthesize(text, voice, ledger_path, max_usd=0.5, model=MODEL):
     if not isinstance(text, str) or not text.strip() or len(text.split()) > MAX_WORDS: raise ValueError('Each spoken part must be 1 to %d words' % MAX_WORDS)
     if isinstance(max_usd, bool) or not isinstance(max_usd, (int, float)) or not 0 < max_usd <= 100: raise ValueError('Set a spend guard between 0 and 100 USD')
     pid = project()
-    if pid is None: raise GeminiSpeechError('No default Google Cloud project is configured on this computer; no request was sent')
+    if pid is None: raise GeminiSpeechError('No Google Cloud project is set (plugin setting gemini_project); no request was sent')
     path = Path(ledger_path)
     ledger = json.loads(path.read_text()) if path.exists() else []
     estimate = estimate_usd(text); spent = sum(r['reserved_or_actual_usd'] for r in ledger)
     if spent + estimate > max_usd: raise GeminiSpeechError(guard_message(estimate, spent, max_usd, ledger))
-    try:
-        token = access_token()
-    except Exception:
-        raise GeminiSpeechError('Could not get Google credentials before sending; no request was sent') from None
     url = 'https://aiplatform.googleapis.com/v1/projects/%s/locations/global/publishers/google/models/%s:generateContent' % (pid, model)
     body = {'contents': [{'role': 'user', 'parts': [{'text': text}]}], 'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'voice': voice}}}}
     row = {'started': time.time(), 'status': 'pending', 'voice': voice, 'reserved_or_actual_usd': estimate}
     ledger.append(row); _save(path, ledger)
     try:
-        status, content = transport(url, {'Authorization': 'Bearer ' + token, 'x-goog-user-project': pid}, body)
-    except Exception:
+        status, content = transport(url, {'x-goog-user-project': pid}, body)
+    except Exception as exc:
+        from . import google_signin
+        if isinstance(exc, google_signin.NotSent):
+            ledger.remove(row); _save(path, ledger)
+            raise GeminiSpeechError(str(exc)) from None
         row['status'] = 'unknown'; _save(path, ledger)
         raise GeminiSpeechError('The speech request did not complete; whether it was billed is unknown; no retry was made') from None
     if status != 200:

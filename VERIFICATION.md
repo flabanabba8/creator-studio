@@ -1,4 +1,4 @@
-# Verification of Creator Studio 0.2.3
+# Verification of Creator Studio 0.3.0
 
 This file says what was checked on the bundle. Each part's live evidence (real Gemini runs, real recordings, real captions, demos) belongs to that part's own record: see `VERIFICATION.md` inside `youtube_studio/`, `podcast_studio/`, `caption_studio/` and `tutorial_creator/`. Nothing in those records was re-run live for the bundle, and the bundle adds no new claim about speech, picture or recognizer quality.
 
@@ -57,3 +57,20 @@ Assembly reports the actual section pictures and all attached images left unused
 ## Added in 0.2.3
 
 Project assets are isolated unless explicitly imported. Video assembly allocates time to all attached images and reports the actual image ranges. Resume status gives an ordered completion plan, and speech-cap refusals distinguish earlier recorded cues and their costs from the cue that was not sent. Offline fixtures cover these paths, including cross-project podcast music and tutorial voice references.
+
+## Changed in 0.3.0: Google sign-in through Hermes
+
+Gemini narration (YouTube Studio, Podcast Studio, Tutorial Creator) no longer uses Application Default Credentials,
+`google.auth`, a token refresh of its own or `gcloud config get-value project`. `plugin.yaml` declares an `oauth:` entry
+(id `google`, scope `cloud-platform`, host `aiplatform.googleapis.com`, the user's own client in two optional variables)
+and every speech request goes through `hermes_cli.plugin_provider_requests.credentialed_provider_request`. The project
+id comes only from the `gemini_project` setting.
+
+Checked: the whole suite passes with the request helper faked (one request per part, ledger, spend guard, the
+not-signed-in refusal that sends nothing and keeps no ledger row, and a source check that the three speech modules
+contain no `google.auth`, subprocess, refresh or bearer handling).
+
+NOT checked: a real `hermes auth add creator-studio:google` sign-in and a real signed speech request. The earlier live
+Gemini runs recorded in the parts' own files used the old login route. Treat the signed-in route as untested against
+Google until someone has run the four setup steps in the README.
+

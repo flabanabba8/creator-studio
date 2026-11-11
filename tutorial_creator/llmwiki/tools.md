@@ -52,7 +52,7 @@ Inputs: `job_id` (required), `export_name` (required), `seconds` (required).
 
 ## tutorial_narrate
 
-Generate timestamped narration and mix it into a completed export. Default route: Gemini 3.8 Flash TTS through your own Google Cloud login, one request per cue, a named voice (see capture_sources, speech section) and a spend guard; other routes are a configured local speech service or a host speech tool. Measures every clip, refuses overruns without speeding/cutting speech, caches unchanged cues, and writes segment captions plus the speech credit and usage. Does not start or install a model.
+Generate timestamped narration and mix it into a completed export. Default route: Gemini 3.8 Flash TTS with a Google sign-in held by Hermes, one request per cue, a named voice (see capture_sources, speech section) and a spend guard; other routes are a configured local speech service or a host speech tool. Measures every clip, refuses overruns without speeding/cutting speech, caches unchanged cues, and writes segment captions plus the speech credit and usage. Does not start or install a model.
 
 Inputs: `job_id` (required), `export_name` (required), `cues` (required).
 

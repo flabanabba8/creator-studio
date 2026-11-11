@@ -8,7 +8,7 @@ under 90 seconds. Each take keeps its original recording and timestamp markers.
 **At a glance**
 
 - **Install:** `hermes plugins install flabanabba8/automatic-tutorial-creator`, then `hermes plugins enable automatic-tutorial-creator`.
-- **Needs:** Hermes 0.22 or later, FFmpeg, and a Linux X11 or XWayland desktop. Narration: Gemini 3.8 Flash TTS through your own Google Cloud login (default), a speech server on your computer, or a speech tool you select.
+- **Needs:** Hermes 0.22.3 or later, FFmpeg, and a Linux X11 or XWayland desktop. Narration: Gemini 3.8 Flash TTS with a Google sign-in held by Hermes (default), a speech server on your computer, or a speech tool you select.
 - **Internet:** Nothing, except narration: with the Gemini default, the narration text goes to Google and costs money, capped by a per-tutorial spending guard. Recording and cutting are local.
 - **Limits:** Only X11/XWayland windows are captured; native Wayland and Windows are not implemented. Keep the window uncovered while recording. Exported tutorials are limited to under 90 seconds.
 - **Credits:** Narration voices come from the engine you choose. Licence: GPL-3.0-or-later.
@@ -73,11 +73,10 @@ may run at once; the worker auto-stops within ten minutes plus bounded shutdown.
 
 ## Gemini 3.8 speech (default)
 
-Narration defaults to Gemini 3.8 Flash TTS through your own Google Cloud login (Application Default
-Credentials). `capture_sources` lists readiness and 30 named voices with gender, trait and measured pitch;
+Narration defaults to Gemini 3.8 Flash TTS with a Google sign-in held by Hermes (your own OAuth client, `hermes auth add creator-studio:google`; no gcloud file is read). `capture_sources` lists readiness and 30 named voices with gender, trait and measured pitch;
 set `gemini_voice` to pick one. One request is sent per narration line and never retried; a ledger
 (`gemini-usage.json` in the take folder) enforces `gemini_max_usd` (default 0.50) and the narration result
-reports usage. The Google Cloud project comes from your gcloud default or `gemini_project` and is never
+reports usage. The Google Cloud project comes from the `gemini_project` setting and is never
 shown. Unchanged lines are reused from cache. Cost is cents per tutorial.
 
 ## Known limit: LibreOffice Calc

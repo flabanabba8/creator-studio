@@ -30,7 +30,7 @@ class GeminiSpeech(unittest.TestCase):
 
     def call(self, transport, **kw):
         return gemini_speech.synthesize('Hello there.', kw.pop('voice', 'Achird'), 'gemini-3.8-flash-tts', project='fixture-project',
-                                        ledger_path=self.ledger, transport=transport, credentials=self.creds, **kw)
+                                        ledger_path=self.ledger, transport=transport, **kw)
 
     def test_request_shape_one_post_and_ledger(self):
         seen = []
@@ -41,7 +41,7 @@ class GeminiSpeech(unittest.TestCase):
         url, headers, body = seen[0]
         self.assertIn('gemini-3.8-flash-tts:generateContent', url)
         self.assertEqual(body['generationConfig']['speechConfig']['voiceConfig']['voice'], 'Achird')
-        self.assertEqual(headers['Authorization'], 'Bearer fixture-token')
+        self.assertNotIn('Authorization', headers)  # Hermes attaches the sign-in; the plugin never holds a token
         rows = json.loads(self.ledger.read_text())
         self.assertEqual(rows[0]['status'], 'received')
         self.assertEqual(rows[0]['input_tokens'], 10)
@@ -89,7 +89,7 @@ class GeminiSpeech(unittest.TestCase):
     def test_unknown_voice_and_model_refused(self):
         with self.assertRaises(ValueError): self.call(Mock(), voice='NotAVoice')
         with self.assertRaises(ValueError):
-            gemini_speech.synthesize('x', 'Achird', 'other-model', project='p', ledger_path=self.ledger, transport=Mock(), credentials=self.creds)
+            gemini_speech.synthesize('x', 'Achird', 'other-model', project='p', ledger_path=self.ledger, transport=Mock())
 
     def test_invalid_audio_is_recorded(self):
         bad = ok_response(audio=b'not a wav')
@@ -98,16 +98,16 @@ class GeminiSpeech(unittest.TestCase):
         self.assertEqual(json.loads(self.ledger.read_text())[0]['status'], 'audio_invalid')
 
     def test_availability_lists_thirty_named_voices_without_project(self):
-        with patch.object(gemini_speech, 'project_id', return_value='fixture-project'):
+        with patch.object(gemini_speech._signin(), 'configured_project', return_value='fixture-project'):
             info = gemini_speech.availability()
         self.assertEqual(len(info['voices']), 30)
         self.assertNotIn('fixture-project', json.dumps(info))
         self.assertTrue(info['project_configured'])
 
     def test_project_id_never_accepts_unsafe_text(self):
-        with patch.object(gemini_speech.subprocess, 'run', return_value=Mock(stdout='bad project; rm -rf\n')):
+        for bad in ('', 'bad project; rm -rf'):
             with self.assertRaisesRegex(ValueError, 'No Google Cloud project'):
-                gemini_speech.project_id('')
+                gemini_speech.project_id(bad)
         self.assertEqual(gemini_speech.project_id('my-project-1'), 'my-project-1')
 
     def test_narrate_uses_gemini_cache_and_reports_usage(self):
@@ -122,7 +122,7 @@ class GeminiSpeech(unittest.TestCase):
             posts = []
             def transport(url, headers, body): posts.append(body); return ok_response()
             settings = {'narration_backend': 'gemini', 'gemini_voice': 'Achird', 'gemini_project': 'fixture-project'}
-            with patch('tutorial_test.narration.Director') as D, patch.object(gemini_speech, 'synthesize', side_effect=lambda t, v, m, **kw: gemini_speech.__dict__['_real'](t, v, m, transport=transport, credentials=self.creds, **kw)):
+            with patch('tutorial_test.narration.Director') as D, patch.object(gemini_speech, 'synthesize', side_effect=lambda t, v, m, **kw: gemini_speech.__dict__['_real'](t, v, m, transport=transport, **kw)):
                 D.return_value.timeline.return_value = {'seconds': 3.0}
                 D.return_value.job.return_value = folder
                 result = narrate(root, 'job', 'export.mp4', [{'start': 0, 'end': 1.5, 'text': 'Hello there.'}], settings)
@@ -139,3 +139,35 @@ gemini_speech.__dict__['_real'] = gemini_speech.synthesize
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class HermesSignIn(unittest.TestCase):
+    """The plugin never touches a Google credential: Hermes signs the request, and nothing of another tool is read."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(dir='/tmp'); self.ledger = Path(self.tmp.name) / 'usage.json'
+    def tearDown(self): self.tmp.cleanup()
+
+    def test_request_goes_through_the_hermes_helper_without_an_authorization_header(self):
+        signin = gemini_speech._signin(); seen = []
+        def post(url, body, project, timeout=240.0):
+            seen.append((url, project)); r = ok_response(); return 200, r.content
+        with patch.object(signin, 'post', post):
+            audio = gemini_speech.synthesize('Hello there.', 'Achird', 'gemini-3.8-flash-tts', project='fixture-project', ledger_path=self.ledger)
+        self.assertEqual(audio[:4], b'RIFF'); self.assertEqual(seen[0][1], 'fixture-project')
+        self.assertTrue(seen[0][0].startswith('https://aiplatform.googleapis.com/'))
+
+    def test_not_signed_in_sends_nothing_keeps_no_ledger_row_and_names_the_command(self):
+        signin = gemini_speech._signin()
+        def post(*a, **k): raise signin.NotSent('Not signed in to Google through Hermes; no request was sent. ' + signin.SETUP)
+        with patch.object(signin, 'post', post):
+            with self.assertRaisesRegex(gemini_speech.SpeechError, 'hermes auth add creator-studio:google'):
+                gemini_speech.synthesize('Hello there.', 'Achird', 'gemini-3.8-flash-tts', project='fixture-project', ledger_path=self.ledger)
+        self.assertEqual(json.loads(self.ledger.read_text()), [])
+
+    def test_source_reads_no_other_tools_login(self):
+        root = Path(gemini_speech.__file__).resolve().parents[1]
+        for name in ('common/gemini_speech.py', 'common/google_signin.py', 'tutorial_creator/gemini_speech.py'):
+            code = '\n'.join(l for l in (root / name).read_text().splitlines() if not l.strip().startswith(('#', '"""')) and 'No gcloud file' not in l)
+            for banned in ('google.auth', 'subprocess', 'application_default', 'refresh(', 'Bearer'):
+                self.assertNotIn(banned, code, (name, banned))
+

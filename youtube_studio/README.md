@@ -135,7 +135,7 @@ Skill and wiki now say how a returning session finds its project, attaches exist
 
 ## 0.4.1 (2026-11-10)
 
-- Skill: when the host has an image tool, two or three explanatory illustrations (copied into the working folder, looked at, attached as section pictures), a cycle flowchart, and enough sections for each picture; a generated picture is never a chart.
+- Skill: when the host has an image tool, one explanatory illustration (or the number the user requests) (copied into the working folder, looked at, attached as section pictures), a cycle flowchart, and enough sections for each picture; a generated picture is never a chart.
 
 ## 0.4.2 (2026-11-10)
 
@@ -153,7 +153,7 @@ Skill and wiki now say how a returning session finds its project, attaches exist
 
 ## 0.4.5 (2026-11-10)
 
-- `youtube_assemble_project` takes `image_tool_available` (required in the tool schema): when true, assembly refuses until at least two generated illustrations (review_note starting "Generated illustration:") are attached.
+- `youtube_assemble_project` takes `image_tool_available` (required in the tool schema): when true, assembly refuses until at least one generated illustration (review_note starting "Generated illustration:") are attached.
 
 ## 0.4.6 (2026-11-10)
 

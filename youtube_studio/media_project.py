@@ -248,7 +248,7 @@ class MediaProject:
         from ..common.resume import plan as resume_plan
         if type(offset)is not int or offset<0 or type(limit)is not int or not 1<=limit<=10:raise ValueError('Choose a bounded project summary page')
         sources=list(data['sources'].values());assets=list(data['assets'].values());sections=data['sections'];end=offset+limit
-        return {'project_id':project_id,'phase':data['phase'],'topic':data['topic'],'audience':data['audience'],'source_count':len(sources),'asset_count':len(assets),'section_count':len(sections),'sources':[{'source_id':x['source_id'],'title':x['title'],'characters':x['characters'],'read_to':x['read_to']}for x in sources[offset:end]],'assets':[{'asset_id':x['asset_id'],'kind':x['kind'],'file':x['file'],'review_note_recorded':bool(x['review_note'])}for x in assets[offset:end]],'sections':[{'title':x['title'],'turn_count':len(x['turns']),'audio_count':len(x['audio_ids']),'image_id':x['image_id'],'source_ids':x['source_ids']}for x in sections[offset:end]],'next_offset':end if end<max(len(sources),len(assets),len(sections))else None,'result':data.get('result',{}),'resume':resume_plan(data,self.kind)}
+        return {'project_id':project_id,'phase':data['phase'],'topic':data['topic'],'audience':data['audience'],'source_count':len(sources),'asset_count':len(assets),'section_count':len(sections),'sources':[{'source_id':x['source_id'],'title':x['title'],'characters':x['characters'],'read_to':x['read_to']}for x in sources[offset:end]],'assets':[{'asset_id':x['asset_id'],'kind':x['kind'],'file':x['file'],'path':str(p/x['file']),'review_note_recorded':bool(x['review_note'])}for x in assets[offset:end]],'sections':[{'title':x['title'],'turn_count':len(x['turns']),'audio_count':len(x['audio_ids']),'image_id':x['image_id'],'source_ids':x['source_ids']}for x in sections[offset:end]],'next_offset':end if end<max(len(sources),len(assets),len(sections))else None,'result':data.get('result',{}),'resume':resume_plan(data,self.kind),'caption_request':'For an add captions request, call captions_for_latest with kind video to provide separate script captions, even if burned in.'}
     def _visuals_report(self,p,data):
         """Find charts/flowcharts made for this project that no section shows; place each in its matching section when the match is clear, else report it."""
         def words(x):return{w for w in re.findall(r'[a-z0-9]{4,}',str(x).lower())}
@@ -262,20 +262,34 @@ class MediaProject:
             if a['kind']=='image'and'youtube_make_visual'in a.get('review_note','')and a['asset_id']not in shown:
                 t=titles.get(a['sha256'],{});pool.append({'path':str(p/a['file']),'title':t.get('title')or'a drawn visual','text':(t.get('title','')+' '+t.get('kind',''))})
         have={a['sha256']for a in data['assets'].values()}
+        # Legacy unassigned visuals belong to the interval before the next project starts.
+        later=[]
+        for meta in self.root.glob('*/project.json'):
+            try: created=json.loads(meta.read_text()).get('created',0)
+            except (OSError,ValueError): continue
+            if created>data.get('created',0):later.append(created)
+        end=min(later,default=float('inf'))
         for v in logged:
-            if v.get('created',0)>=data.get('created',0)and v.get('sha256')not in have and Path(v.get('path','')).is_file():pool.append({'path':v['path'],'title':v.get('title',''),'text':v.get('title','')+' '+v.get('kind','')})
+            belongs=(v.get('project_id')==data['project_id'] if v.get('project_id') else data.get('created',0)<=v.get('created',0)<end)
+            if belongs and v.get('sha256')not in have and Path(v.get('path','')).is_file():pool.append({'path':v['path'],'title':v.get('title',''),'text':v.get('title','')+' '+v.get('kind','')})
         placed=[];unused=[];taken=set()
         for v in pool:
             vw=words(v['text']+' '+Path(v['path']).stem)
             scores=[(len(vw&words(sec['title']+' '+sec.get('visual_brief','')+' '+' '.join(t['text']for t in sec['turns']))),i)for i,sec in enumerate(data['sections'])if i not in taken]
             scores.sort(reverse=True)
             ok=scores and scores[0][0]>=1 and(len(scores)==1 or scores[0][0]>scores[1][0])
-            current=data['assets'].get(data['sections'][scores[0][1]].get('image_id')or'',{}).get('review_note','')if ok else''
-            if ok and 'youtube_make_visual' not in current:
+            if ok and not data['sections'][scores[0][1]].get('image_id'):
                 i=scores[0][1];taken.add(i)
                 row=self.add_asset(data['project_id'],v['path'],'image',i,'Drawn by youtube_make_visual (%s); placed automatically at assembly in the section it matched; it is the picture of this section.'%(v['title'][:80]))
                 placed.append({'visual':v['title'],'section_index':i,'section':data['sections'][i]['title'],'asset_id':row['asset_id']})
             else:unused.append({'visual':v['title'],'path':v['path']})
+        if placed:p,data=self.load(data['project_id'])
+        shown={sec['image_id'] for sec in data['sections'] if sec.get('image_id')}
+        reported={str(Path(v['path'])) for v in unused}
+        for a in data['assets'].values():
+            path=str(p/a['file'])
+            if a['kind']=='image' and a['asset_id'] not in shown and path not in reported:
+                unused.append({'visual':a.get('review_note','')[:120] or a['file'],'path':path})
         return placed,unused
     def assemble(self,project_id,image_tool_available=None):
         p,data=self.load(project_id)
@@ -283,7 +297,7 @@ class MediaProject:
         if placed:p,data=self.load(project_id)
         if image_tool_available is True and self.kind=='video':
             made=[a for a in data['assets'].values()if a['kind']=='image'and'generated'in a.get('review_note','').lower()]
-            if len(made)<2:raise ValueError('The host has an image generation tool, so this lesson needs generated illustrations first: call image_generate for 2 or 3 pictures (no text inside), copy each into the working folder, look at it, and attach it with youtube_material_add (or as the image_path of a youtube_make_slides slide) with a review_note that starts with "Generated illustration:" and says what you saw. Found %d.'%len(made))
+            if len(made)<1:raise ValueError('The host has an image generation tool, so this lesson needs generated illustrations first: call image_generate for one picture (no text inside), copy each into the working folder, look at it, and attach it with youtube_material_add (or as the image_path of a youtube_make_slides slide) with a review_note that starts with "Generated illustration:" and says what you saw. Found %d.'%len(made))
         if not data['sections']:raise ValueError('Write the researched script first')
         parts=[];timeline=[];frames=0;params=None;images=[];spoken=[]
         for section in data['sections']:
@@ -346,6 +360,7 @@ class MediaProject:
                 movie=render_slides(self.root.parent,batch,str(audio),[],part,allow_profile_media=True,burn_captions=True,audio_start=offset);movies.append(movie);offset+=sum(x['seconds']for x in batch)
             result['video']=movies[0]if len(movies)==1 else stitch_segments(self.root.parent,[x['segment_id']for x in movies],str(audio),allow_profile_media=True)
         if self.kind=='video':
+            result['visuals_used']=[{'section':section['title'],'path':str(p/data['assets'][section['image_id']]['file']),'description':data['assets'][section['image_id']].get('review_note','')} for section in data['sections']]
             if placed:result['visuals_placed']=placed
             if unused:result['visuals_unused']=unused;result['visuals_notice']='%d visual%s made but not used: %s. Attach it with youtube_make_visual (project_id, section_index) or youtube_material_add and assemble again, or tell the user it was left out.'%(len(unused),'' if len(unused)==1 else 's',', '.join(u['visual']for u in unused))
         data['phase']='assembled';data['result']=result;save(p/'project.json',data);save(p/'delivery.json',result);return result
@@ -388,5 +403,5 @@ def schemas(prefix):
         prefix+'_write_script':('Save original researched sections with speaker/text turns, source IDs and visual briefs. Uses the ACTIVE host model for writing; no secondary LLM/client/key.',{**ref,'sections':{'type':'array','minItems':1,'maxItems':40}},['project_id','sections'],'script'),
         prefix+'_material_add':('Attach an actual generated/selected image or measured speech WAV to a script section. Inspect generated images directly in the main session; never attach text pretending to be an image.',{**ref,'source_path':s,'kind':{'type':'string','enum':['image','audio','video','document']},'section_index':i,'review_note':s,'allow_profile_media':{'type':'boolean'}},['project_id','source_path','kind'],'add_asset'),
         prefix+'_narrate':('Record the whole script, one request per spoken part, no rerolls, raw takes kept, normalized and attached to the right section in order. Default engine is Gemini 3.8 Flash TTS on Vertex AI (engine gemini, pass a voice name that fits the lesson from gemini_speech.voices in youtube_start_topic; spend guard max_usd default 0.50, usage returned) whenever it is set up on this computer; otherwise (or with engine local) a speech server on THIS computer (found automatically; see speech_servers from youtube_start_topic): one request per spoken turn, 60 words or fewer each, no rerolls, raw takes kept, normalized to mono 24 kHz WAV and attached to the right section in order. Optional voice reference: reference_audio (a WAV file of at most 30 seconds, any readable path) with reference_text (exactly what it says); the plugin sends it with each request itself. Replaces hand-written speech requests. Turns already recorded are skipped.',{**ref,'engine':{'type':'string','enum':['gemini','local']},'voice':s,'max_usd':{'type':'number','exclusiveMinimum':0,'maximum':100},'reference_audio':s,'reference_text':s,'base_url':s,'model':s},['project_id'],'narrate'),
-        prefix+'_assemble_project':('Assemble attached measured speech and, for video, reviewed images into a real local output. Missing material or unsupported audio blocks assembly; no placeholder success. For video lessons, image_tool_available says whether the host has an image generation tool (tool_search image_generate); if true, at least two generated illustrations must be attached first.',{**ref,'image_tool_available':{'type':'boolean'}},['project_id']+(['image_tool_available']if prefix=='youtube'else[]),'assemble'),
+        prefix+'_assemble_project':('Assemble attached measured speech and, for video, reviewed images into a real local output. Missing material or unsupported audio blocks assembly; no placeholder success. For video lessons, image_tool_available says whether the host has an image generation tool (tool_search image_generate); if true, at least one generated illustration must be attached first; set false when the user declines generated images.',{**ref,'image_tool_available':{'type':'boolean'}},['project_id']+(['image_tool_available']if prefix=='youtube'else[]),'assemble'),
         prefix+'_project_status':('Read actual project sources/script/materials and production state; creates no model request. Call it with no project_id to list the existing projects (ID, topic, phase) so earlier work can be found and continued. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.',{**ref,'offset':i,'limit':{'type':'integer','minimum':1,'maximum':10}},[],'status')}

@@ -85,7 +85,7 @@ class Route(unittest.TestCase):
         for i in(0,1):
             p2=self.root/('g%d.png'%i);Image.new('RGB',(64,36),(i*50,9,9)).save(p2);app.add_asset(pid,str(p2),'image',i,'Inspected slide, readable.')
         with self.assertRaisesRegex(ValueError,'generated illustrations'):app.assemble(pid,image_tool_available=True)
-        for i in(0,1):app.add_asset(pid,str(self.root/('g%d.png'%i)),'image',i,'Generated illustration: sun on the left lighting the Moon.')
+        app.add_asset(pid,str(self.root/'g0.png'),'image',0,'Generated illustration: sun on the left lighting the Moon.')
         self.assertTrue(app.assemble(pid,image_tool_available=True)['video'])
         app2,pid2=self.project();app2.narrate(pid2,engine='gemini',voice='Kore')
         for i in(0,1):app2.add_asset(pid2,str(self.root/('g%d.png'%i)),'image',i,'Inspected slide, readable.')

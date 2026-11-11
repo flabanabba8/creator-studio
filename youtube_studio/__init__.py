@@ -88,7 +88,7 @@ def invoke(name, args, ctx=None, **context):
             try:  # remembered so a later assembly can notice a chart that no section shows
                 import hashlib,time
                 log=plugin_data_dir(STORAGE_NAMESPACE)/'visuals.json';rows=json.loads(log.read_text())if log.is_file()else[]
-                rows.append({'path':result['output_path'],'sha256':hashlib.sha256(Path(result['output_path']).read_bytes()).hexdigest(),'title':args.get('title',''),'kind':args.get('kind',''),'created':time.time()})
+                rows.append({'path':result['output_path'],'sha256':hashlib.sha256(Path(result['output_path']).read_bytes()).hexdigest(),'title':args.get('title',''),'kind':args.get('kind',''),'created':time.time(),'project_id':project_id})
                 log.write_text(json.dumps(rows[-50:]));log.chmod(0o600)
             except (OSError,ValueError,KeyError):pass
             if project_id is not None or section_index is not None:

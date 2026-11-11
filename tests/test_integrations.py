@@ -71,8 +71,29 @@ class CaptionLatest(Fixture):
         self.assertEqual(out['found']['kind'], 'video')
         self.assertTrue(out['found']['media_path'].endswith('out.mp4'))
         self.assertEqual(out['captions']['cues'], 2)
+        self.assertEqual(Path(out['captions']['srt_path']), Path(out['found']['media_path']).with_suffix('.srt'))
         self.assertIn('not run', out['recognition'])
         self.assertIn('00:00:02,000 --> 00:00:04,000', Path(out['captions']['srt_path']).read_text())
+
+    def test_video_uses_real_assembly_captions_without_timeline_turns(self):
+        folder = self.project('creator-studio-youtube', 'video', 'a' * 32, 'sky', 'out.mp4')
+        meta = folder / 'project.json'
+        data = json.loads(meta.read_text())
+        data['result']['timeline'] = [{'title': 'Why', 'start': 0, 'end': 4, 'source_ids': []}]
+        meta.write_text(json.dumps(data))
+        (folder / 'captions.srt').write_text('1\n00:00:00,000 --> 00:00:04,000\nThe sky is blue.\n')
+        out = self.call(kind='video')
+        self.assertEqual(out['captions']['made_by'], 'video assembly')
+        self.assertIn('The sky is blue.', Path(out['captions']['srt_path']).read_text())
+        self.assertIn('not run', out['recognition'])
+
+    def test_caption_sidecar_does_not_overwrite_a_different_file(self):
+        folder = self.project('creator-studio-youtube', 'video', 'a' * 32, 'sky', 'out.mp4')
+        existing = folder / 'out.srt'
+        existing.write_text('keep me')
+        out = self.call(kind='video')
+        self.assertEqual(existing.read_text(), 'keep me')
+        self.assertEqual(Path(out['captions']['srt_path']).name, 'out-captions-1.srt')
 
     def test_podcast_prefers_its_own_episode_captions(self):
         folder = self.project('creator-studio-podcast', 'podcast', 'b' * 32, 'cats', 'ep.wav')

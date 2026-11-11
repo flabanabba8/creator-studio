@@ -57,9 +57,9 @@ def _projects(root, kind):
 def _from_project(item):
     mtime, kind, folder, data, result, media = item
     script = None
-    existing = folder / 'captions.srt'  # written by podcast_episode_files
-    if kind == 'podcast' and _regular(existing):
-        script = {'path': str(existing), 'made_by': 'podcast_episode_files'}
+    existing = folder / 'captions.srt'  # written by video assembly or podcast_episode_files
+    if _regular(existing):
+        script = {'path': str(existing), 'made_by': 'video assembly' if kind == 'video' else 'podcast_episode_files'}
     elif result.get('timeline'):
         target = folder / 'script-captions.srt'
         body = _timeline_srt(result['timeline'])

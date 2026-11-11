@@ -1,4 +1,4 @@
-# Verification of Creator Studio 0.2.1
+# Verification of Creator Studio 0.2.2
 
 This file says what was checked on the bundle. Each part's live evidence (real Gemini runs, real recordings, real captions, demos) belongs to that part's own record: see `VERIFICATION.md` inside `youtube_studio/`, `podcast_studio/`, `caption_studio/` and `tutorial_creator/`. Nothing in those records was re-run live for the bundle, and the bundle adds no new claim about speech, picture or recognizer quality.
 
@@ -49,3 +49,7 @@ These are the parts' own tests, run against the combined layout, plus the new re
 - No new live Gemini, recognizer or screen-recording run for the bundle.
 - Only Linux was tested. No Windows or macOS run.
 - Running the stand-alone plugin and the suite together in one profile was not tested; run only one.
+
+## Added in 0.2.2
+
+Assembly reports the actual section pictures and all attached images left unused without replacing an existing section picture. Script captions are copied next to the finished media without overwriting a different file.

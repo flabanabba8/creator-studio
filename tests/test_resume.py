@@ -79,9 +79,32 @@ class UnplacedVisuals(Base):
         m.add_asset(pid, flow, 'image', 1, 'Drawn by youtube_make_visual from the supplied data (sourced: x)')
         m.add_asset(pid, png(self.dir / 'slide.png', 'black'), 'image', 1, 'Drawn by youtube_make_slides from the outline; not yet inspected')
         placed, unused = m._visuals_report(p, m.load(pid)[1])
-        self.assertEqual([x['section_index'] for x in placed], [1])  # the slide had displaced it; the clear title match puts it back
-        self.assertEqual(unused, [])
-        self.assertIn('youtube_make_visual', m.load(pid)[1]['assets'][m.load(pid)[1]['sections'][1]['image_id']]['review_note'])
+        self.assertEqual(placed, [])
+        self.assertEqual(unused[0]['visual'], 'Sunsets flowchart')
+        self.assertIn('youtube_make_slides', m.load(pid)[1]['assets'][m.load(pid)[1]['sections'][1]['image_id']]['review_note'])
+
+    def test_unassigned_visual_from_later_project_is_not_attributed_here(self):
+        m, pid, p = self.project()
+        self.project()
+        self.log(png(self.dir / 'later.png', 'red'), 'Later project')
+        self.assertEqual(m._visuals_report(p, m.load(pid)[1]), ([], []))
+
+    def test_status_returns_usable_asset_path_for_resume(self):
+        m, pid, p = self.project()
+        image = png(self.dir / 'slide.png', 'white')
+        m.add_asset(pid, image, 'image', 0, 'Drawn slide; not yet inspected')
+        row = m.status(pid)['assets'][0]
+        self.assertEqual(Path(row['path']).parent, p)
+        self.assertTrue(Path(row['path']).is_file())
+
+    def test_displaced_generated_illustration_is_reported(self):
+        m, pid, p = self.project()
+        illustration = png(self.dir / 'generated.png', 'red')
+        m.add_asset(pid, illustration, 'image', 0, 'Generated illustration: red sky')
+        m.add_asset(pid, png(self.dir / 'flow.png', 'white'), 'image', 0, 'Drawn by youtube_make_visual: flow')
+        placed, unused = m._visuals_report(p, m.load(pid)[1])
+        self.assertEqual(placed, [])
+        self.assertTrue(any('Generated illustration: red sky' in v['visual'] for v in unused))
 
     def test_visuals_from_older_projects_and_already_shown_ones_are_ignored(self):
         m, pid, p = self.project()

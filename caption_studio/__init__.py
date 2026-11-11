@@ -56,8 +56,23 @@ def latest_captions(args, ctx, **context):
     if script and not recognize:
         path = Path(script['path'])
         cues = len(re.findall(r'-->', path.read_text(encoding='utf-8', errors='replace')))
-        extra = [str(path.with_suffix(x)) for x in ('.vtt',) if path.with_suffix(x).is_file()]
-        return {'found': item, 'captions': {**script, 'srt_path': str(path), 'other_formats': extra, 'cues': cues, 'timing': 'script text on measured take timing; not word-aligned'},
+        # Keep sidecars beside the finished media without overwriting existing files.
+        media = Path(item['media_path'])
+        def sidecar(source):
+            content = source.read_bytes()
+            for n in range(1000):
+                dest = media.with_name(media.stem + ('' if n == 0 else '-captions-' + str(n)) + source.suffix)
+                if dest == source: return str(dest)
+                try:
+                    with dest.open('xb') as f: f.write(content)
+                    dest.chmod(0o600)
+                    return str(dest)
+                except FileExistsError:
+                    if dest.read_bytes() == content: return str(dest)
+            raise ValueError('Could not choose an unused caption filename next to the media')
+        extra = [sidecar(path.with_suffix(x)) for x in ('.vtt',) if path.with_suffix(x).is_file()]
+        srt = sidecar(path)
+        return {'found': item, 'captions': {**script, 'srt_path': srt, 'other_formats': extra, 'cues': cues, 'timing': 'script text on measured take timing; not word-aligned'},
                 'recognition': 'not run: this item has captions from its own script. Call again with recognize=true and a recognizer if you want them checked against the audio.',
                 'notice': 'Draft from the script, not a transcript of the audio; listen before publishing.'}
     if not isinstance(recognizer, dict):

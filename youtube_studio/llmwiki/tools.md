@@ -58,7 +58,7 @@ Inputs: `project_id` (required), `engine` (optional), `voice` (optional), `max_u
 
 ## youtube_assemble_project
 
-Assemble attached measured speech and, for video, reviewed images into a real local output. Missing material or unsupported audio blocks assembly; no placeholder success. For video lessons, image_tool_available says whether the host has an image generation tool (tool_search image_generate); if true, at least two generated illustrations must be attached first.
+Assemble attached measured speech and, for video, reviewed images into a real local output. Missing material or unsupported audio blocks assembly; no placeholder success. For video lessons, image_tool_available says whether the host has an image generation tool (tool_search image_generate); if true, at least one generated illustration must be attached first; set false when the user declines generated images.
 
 Inputs: `project_id` (required), `image_tool_available` (required).
 

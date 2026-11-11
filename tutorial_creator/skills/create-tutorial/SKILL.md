@@ -131,3 +131,5 @@ A beginner must be able to follow every step on screen.
 ## "Carry on"
 
 After a stop or provider error, call `capture_status` with no job_id: it lists the newest recordings and the one next step for each (stop, export, narrate, or finished). Do not record again if the recording is complete. `tutorial_narrate` caches every spoken cue, so repeating it only pays for cues not yet spoken.
+
+If a narration cue is refused by the spend guard, report the already spent or reserved amount and say only that the refused cue was not sent. Earlier cues in the same narration attempt may have been recorded and charged; do not say the entire attempt sent nothing.

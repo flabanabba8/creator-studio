@@ -14,7 +14,7 @@ description: Turn a research topic into a narrated video, creating its stills, i
    tool exists makes the lesson unfinished.
 4. `youtube_make_visual` (kind `cycle` for a repeating cycle, table or flowchart for the rest), attached with `project_id` and
    `section_index`; `youtube_make_slides` with `project_id` for the remaining sections; look at every picture and re-send its note.
-5. `youtube_narrate` (Gemini, no questions), `youtube_assemble_project` (set `image_tool_available` to true when `tool_search` found `image_generate`; assembly then refuses until two generated illustrations are attached, each with a review_note starting "Generated illustration:"), `youtube_description` saved to a file.
+5. `youtube_narrate` (Gemini, no questions), `youtube_assemble_project` (set `image_tool_available` to true when `tool_search` found `image_generate` and the user has not declined generated images; assembly then refuses until one generated illustration is attached, each with a review_note starting "Generated illustration:"), `youtube_description` saved to a file.
 6. Finish with your own summary: video, captions and description paths, each source with what you took from it, the pictures made, the
    narration voice, requests and cost.
 
@@ -158,3 +158,7 @@ Pictures, captions and a description are part of the default result, not extras.
   call `youtube_project_status` with no project_id, take the newest unfinished project, and follow `resume.next`.
   Finished steps are not redone, `youtube_narrate` skips turns already recorded and reuses a take that was paid for
   before the stop, so speech is never paid for twice.
+
+When the user says "add captions to that video", call `captions_for_latest` with kind `video` even if captions are burned in. Return its separate script caption files and explain their timing is from the script, not recognition.
+
+After assembly, use `visuals_used` and `visuals_unused` as the authoritative picture inventory in your answer; name every unused picture. Do not claim that an attached picture appears unless `visuals_used` lists it.

@@ -1,5 +1,7 @@
 # Creator Studio
 
+![Creator Studio](assets/thumbnail.jpg)
+
 Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, and narrated step-by-step tutorials.
 
 **At a glance**

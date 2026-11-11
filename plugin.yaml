@@ -1,0 +1,122 @@
+name: creator-studio
+version: "0.1.0"
+description: "Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, and narrated step-by-step tutorials."
+author: "Creator Studio contributors"
+license: GPL-3.0-or-later
+requires_hermes: ">=0.22.0"
+python_dependencies:
+  - "Pillow==13.0.0"
+provides_tools:
+  - youtube_make_visual
+  - youtube_generate_image
+  - youtube_start_topic
+  - youtube_research_fetch
+  - youtube_source_add
+  - youtube_source_read
+  - youtube_write_script
+  - youtube_material_add
+  - youtube_narrate
+  - youtube_assemble_project
+  - youtube_project_status
+  - youtube_check_timeline
+  - youtube_render_short
+  - youtube_make_slides
+  - youtube_render_slides
+  - youtube_description
+  - youtube_render_still
+  - youtube_render_clips
+  - youtube_stitch_segments
+  - podcast_start_topic
+  - podcast_research_fetch
+  - podcast_source_add
+  - podcast_source_read
+  - podcast_write_script
+  - podcast_material_add
+  - podcast_narrate
+  - podcast_assemble_project
+  - podcast_episode_files
+  - podcast_project_status
+  - podcast_load_episode
+  - podcast_lint_episode
+  - podcast_preflight
+  - podcast_check_script
+  - podcast_check_review
+  - podcast_pagecast_plan
+  - podcast_check_pagecast_cast
+  - podcast_show_notes
+  - podcast_caption_cues
+  - podcast_mix
+  - podcast_mix_timeline
+  - captions_generate
+  - captions_inspect
+  - captions_retime
+  - captions_suggest_alignment
+  - captions_recognizer_options
+  - captions_analyse_audio
+  - captions_audio_status
+  - captions_audio_review
+  - captions_audio_propose
+  - captions_audio_preview
+  - captions_audio_export
+  - captions_audio_cancel
+  - capture_sources
+  - capture_start
+  - capture_status
+  - capture_mark
+  - capture_stop
+  - capture_export
+  - tutorial_timeline
+  - tutorial_narrate
+  - tutorial_step
+  - tutorial_frame
+optional_env:
+  - CAPTION_STUDIO_ASR_KEY
+  - CAPTION_REPAIR_ASR_KEY
+config_schema:
+  native_image_tool: {type: str, default: "", description: "Optional registered native image-generation tool selected after resource discovery; host owns credentials/model. Main-agent direct image generation plus material_add remains available in other runtimes. No silent fallback."}
+  asr_api_key: {type: secret, env: CAPTION_STUDIO_ASR_KEY, required: false, label: "Selected speech service API key", description: "Optional. Used only when you explicitly select an HTTP recognizer with use_api_key. Local commands and imported transcripts need no key. Never paste keys into tool arguments."}
+  higgs_url:
+    type: str
+    default: "http://localhost:8000"
+    description: "Origin of your already-running loopback Higgs TTS3 server."
+  higgs_model:
+    type: str
+    default: "bosonai/higgs-tts-3-4b"
+    description: "Model identifier served by your local Higgs endpoint."
+  higgs_voice:
+    type: str
+    default: "default"
+    description: "Local server voice identifier."
+  higgs_revision:
+    type: str
+    default: ""
+    description: "Model revision; change this when replacing the server's weights to invalidate cached narration."
+  higgs_reference_audio:
+    type: str
+    default: ""
+    description: "Optional local voice-reference WAV/FLAC/MP3 you have rights to use; must also be allowed by your Higgs server."
+  higgs_reference_text:
+    type: str
+    default: ""
+    description: "Transcript of the optional voice reference."
+  narration_backend: {type: str, default: "gemini", choices: [gemini, higgs, local_http, host], description: "gemini = Gemini 3.8 Flash TTS through your own Google Cloud login (default); or a configured compatible local speech HTTP, or an explicitly selected host speech tool."}
+  gemini_voice: {type: str, default: "Achird", description: "Gemini prebuilt voice name; capture_sources lists all 30 with gender, trait and measured pitch."}
+  gemini_model: {type: str, default: "gemini-3.8-flash-tts", choices: [gemini-3.8-flash-tts, gemini-3.8-flash-lite-tts], description: "Gemini speech model."}
+  gemini_max_usd: {type: str, default: "0.50", description: "Spending guard per tutorial in USD (conservative list rates); a request that could pass it is not sent."}
+  gemini_project: {type: str, default: "", description: "Optional Google Cloud project; empty uses your gcloud default project. Never shown in results or logs."}
+  host_tts_tool: {type: str, default: "", description: "Registered speech tool selected after capability discovery; host owns model/auth/approvals."}
+  host_tts_backend_id: {type: str, default: "", description: "Explicit provider/runtime/model revision identity used in narration cache keys."}
+  host_tts_arguments: {type: str, default: "{}", description: "JSON arguments with {text}, {voice}, {model}. No raw credentials."}
+  host_tts_model: {type: str, default: "", description: "Selected model identifier, if that tool accepts it."}
+  host_tts_audio_field: {type: str, default: "path", description: "Dotted result field holding the local PCM WAV path."}
+  host_tts_credit: {type: str, default: "", description: "Attribution/terms notice for the selected speech backend."}
+  host_tts_retry_nonce: {type: str, default: "", description: "Change only after reviewing an uncertain failed host-speech attempt and explicitly authorizing its retry. Cached unchanged cues remain reused."}
+  host_tts_voice: {type: str, default: "default", description: "Voice selected for the host speech tool; separate from the legacy local Higgs voice."}
+  speech_http_url: {type: str, default: "", description: "Chosen compatible loopback speech origin for narration_backend=local_http; no vendor default."}
+  speech_http_model: {type: str, default: "", description: "Actual model served by the selected local endpoint."}
+  speech_http_voice: {type: str, default: "default", description: "Voice supported by the chosen local service."}
+  speech_http_revision: {type: str, default: "", description: "Service/model revision used in cache identity."}
+  speech_http_reference_audio: {type: str, default: "", description: "Optional explicitly selected reference, only if the chosen service supports the references payload."}
+  speech_http_reference_text: {type: str, default: "", description: "Matching reference transcript if required by that service."}
+  speech_http_credit: {type: str, default: "", description: "Attribution/terms notice appropriate to the selected service/model."}
+  speech_http_fields: {type: str, default: "{}", description: "Optional JSON service-specific controls. Core model/input/voice/WAV format are fixed by the selected interface; no Higgs sampling controls are imposed."}

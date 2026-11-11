@@ -1,0 +1,292 @@
+{
+ "words": [
+  {
+   "text": "The",
+   "start_ms": 1000,
+   "end_ms": 1300,
+   "confidence": 0.9
+  },
+  {
+   "text": "harbour",
+   "start_ms": 1400,
+   "end_ms": 1700,
+   "confidence": 0.9
+  },
+  {
+   "text": "opens",
+   "start_ms": 1800,
+   "end_ms": 2100,
+   "confidence": 0.9
+  },
+  {
+   "text": "at",
+   "start_ms": 2200,
+   "end_ms": 2500,
+   "confidence": 0.9
+  },
+  {
+   "text": "dawn",
+   "start_ms": 2600,
+   "end_ms": 2900,
+   "confidence": 0.9
+  },
+  {
+   "text": "every",
+   "start_ms": 3000,
+   "end_ms": 3300,
+   "confidence": 0.9
+  },
+  {
+   "text": "day",
+   "start_ms": 3400,
+   "end_ms": 3700,
+   "confidence": 0.9
+  },
+  {
+   "text": "Fishing",
+   "start_ms": 6000,
+   "end_ms": 6300,
+   "confidence": 0.9
+  },
+  {
+   "text": "boats",
+   "start_ms": 6400,
+   "end_ms": 6700,
+   "confidence": 0.9
+  },
+  {
+   "text": "leave",
+   "start_ms": 6800,
+   "end_ms": 7100,
+   "confidence": 0.9
+  },
+  {
+   "text": "before",
+   "start_ms": 7200,
+   "end_ms": 7500,
+   "confidence": 0.9
+  },
+  {
+   "text": "the",
+   "start_ms": 7600,
+   "end_ms": 7900,
+   "confidence": 0.9
+  },
+  {
+   "text": "sun",
+   "start_ms": 8000,
+   "end_ms": 8300,
+   "confidence": 0.9
+  },
+  {
+   "text": "rises",
+   "start_ms": 8400,
+   "end_ms": 8700,
+   "confidence": 0.9
+  },
+  {
+   "text": "Nets",
+   "start_ms": 11000,
+   "end_ms": 11300,
+   "confidence": 0.9
+  },
+  {
+   "text": "are",
+   "start_ms": 11400,
+   "end_ms": 11700,
+   "confidence": 0.9
+  },
+  {
+   "text": "mended",
+   "start_ms": 11800,
+   "end_ms": 12100,
+   "confidence": 0.9
+  },
+  {
+   "text": "on",
+   "start_ms": 12200,
+   "end_ms": 12500,
+   "confidence": 0.9
+  },
+  {
+   "text": "the",
+   "start_ms": 12600,
+   "end_ms": 12900,
+   "confidence": 0.9
+  },
+  {
+   "text": "long",
+   "start_ms": 13000,
+   "end_ms": 13300,
+   "confidence": 0.9
+  },
+  {
+   "text": "pier",
+   "start_ms": 13400,
+   "end_ms": 13700,
+   "confidence": 0.9
+  },
+  {
+   "text": "Children",
+   "start_ms": 16000,
+   "end_ms": 16300,
+   "confidence": 0.9
+  },
+  {
+   "text": "watch",
+   "start_ms": 16400,
+   "end_ms": 16700,
+   "confidence": 0.9
+  },
+  {
+   "text": "from",
+   "start_ms": 16800,
+   "end_ms": 17100,
+   "confidence": 0.9
+  },
+  {
+   "text": "the",
+   "start_ms": 17200,
+   "end_ms": 17500,
+   "confidence": 0.9
+  },
+  {
+   "text": "old",
+   "start_ms": 17600,
+   "end_ms": 17900,
+   "confidence": 0.9
+  },
+  {
+   "text": "wall",
+   "start_ms": 18000,
+   "end_ms": 18300,
+   "confidence": 0.9
+  },
+  {
+   "text": "A",
+   "start_ms": 21000,
+   "end_ms": 21300,
+   "confidence": 0.9
+  },
+  {
+   "text": "bell",
+   "start_ms": 21400,
+   "end_ms": 21700,
+   "confidence": 0.9
+  },
+  {
+   "text": "rings",
+   "start_ms": 21800,
+   "end_ms": 22100,
+   "confidence": 0.9
+  },
+  {
+   "text": "when",
+   "start_ms": 22200,
+   "end_ms": 22500,
+   "confidence": 0.9
+  },
+  {
+   "text": "the",
+   "start_ms": 22600,
+   "end_ms": 22900,
+   "confidence": 0.9
+  },
+  {
+   "text": "tide",
+   "start_ms": 23000,
+   "end_ms": 23300,
+   "confidence": 0.9
+  },
+  {
+   "text": "turns",
+   "start_ms": 23400,
+   "end_ms": 23700,
+   "confidence": 0.9
+  },
+  {
+   "text": "Marcos",
+   "start_ms": 26000,
+   "end_ms": 26300,
+   "confidence": 0.9
+  },
+  {
+   "text": "counts",
+   "start_ms": 26400,
+   "end_ms": 26700,
+   "confidence": 0.9
+  },
+  {
+   "text": "the",
+   "start_ms": 26800,
+   "end_ms": 27100,
+   "confidence": 0.9
+  },
+  {
+   "text": "morning",
+   "start_ms": 27200,
+   "end_ms": 27500,
+   "confidence": 0.9
+  },
+  {
+   "text": "catch",
+   "start_ms": 27600,
+   "end_ms": 27900,
+   "confidence": 0.9
+  },
+  {
+   "text": "Gulls",
+   "start_ms": 31000,
+   "end_ms": 31300,
+   "confidence": 0.9
+  },
+  {
+   "text": "follow",
+   "start_ms": 31400,
+   "end_ms": 31700,
+   "confidence": 0.9
+  },
+  {
+   "text": "every",
+   "start_ms": 31800,
+   "end_ms": 32100,
+   "confidence": 0.9
+  },
+  {
+   "text": "returning",
+   "start_ms": 32200,
+   "end_ms": 32500,
+   "confidence": 0.9
+  },
+  {
+   "text": "boat",
+   "start_ms": 32600,
+   "end_ms": 32900,
+   "confidence": 0.9
+  },
+  {
+   "text": "Evening",
+   "start_ms": 36000,
+   "end_ms": 36300,
+   "confidence": 0.9
+  },
+  {
+   "text": "arrives",
+   "start_ms": 36400,
+   "end_ms": 36700,
+   "confidence": 0.9
+  },
+  {
+   "text": "slowly",
+   "start_ms": 36800,
+   "end_ms": 37100,
+   "confidence": 0.9
+  },
+  {
+   "text": "there",
+   "start_ms": 37200,
+   "end_ms": 37500,
+   "confidence": 0.9
+  }
+ ]
+}

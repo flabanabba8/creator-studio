@@ -1,0 +1,31 @@
+1
+00:00:01,000 --> 00:00:03,700
+The harbour opens at dawn every day
+
+2
+00:00:06,000 --> 00:00:08,700
+Fishing boats leave before the moon rises
+
+3
+00:00:11,000 --> 00:00:13,700
+Nets are mended on the long pier
+
+4
+00:00:18,000 --> 00:00:20,300
+Children watch from the old wall
+
+5
+00:00:21,000 --> 00:00:23,700
+A bell rings when the tide turns
+
+6
+00:00:26,000 --> 00:00:27,900
+Marcus counts the morning catch
+
+7
+00:00:31,000 --> 00:00:32,900
+Gulls follow every returning boat
+
+8
+00:00:36,000 --> 00:00:37,500
+Evening comes quickly here

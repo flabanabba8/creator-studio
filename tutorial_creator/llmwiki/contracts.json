@@ -1,0 +1,277 @@
+{
+  "status": "actual registered source schemas; handlers not executed for schema capture",
+  "tools": [
+    {
+      "name": "capture_sources",
+      "description": "List local X11 windows and application audio streams. Native Wayland windows are not supported.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "display": {
+            "type": "string",
+            "description": "Optional local X11 display, such as :0."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "capture_start",
+      "description": "Start recording one selected visible X11 window. Optionally route ONE explicitly selected audio stream into a temporary recording sink; playback is muted until recording stops. Recording stops automatically at max_seconds.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "window_id": {
+            "type": "string",
+            "description": "Hex window ID returned by capture_sources."
+          },
+          "display": {
+            "type": "string"
+          },
+          "max_seconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1800
+          },
+          "capture_mode": {
+            "type": "string",
+            "enum": [
+              "window",
+              "window_region"
+            ],
+            "description": "window records the selected drawable. Explicit window_region records its fixed on-screen rectangle, including dialogs/overlapping pixels inside it. Use a private display; keep unrelated windows/notifications away, and do not move/resize the selected window."
+          },
+          "show_cursor": {
+            "type": "boolean",
+            "description": "Show the real pointer in the recording; useful for guided tutorials. Default false."
+          },
+          "audio_stream": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional exact audio stream ID returned by capture_sources; omitted means silent video."
+          }
+        },
+        "required": [
+          "window_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "capture_status",
+      "description": "Read recording state, media duration and step markers.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "capture_mark",
+      "description": "Mark a demonstration step on the current media timeline, approximately half-second precision.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "job_id",
+          "label"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "capture_stop",
+      "description": "Stop this plugin-owned recording and restore its selected audio route.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "capture_export",
+      "description": "Cut ordered segments from a completed recording into a checked H.264 MP4, at most 89 seconds. Original recording is preserved.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "segments": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "duration": {
+                  "type": "number",
+                  "minimum": 0.1
+                }
+              },
+              "required": [
+                "start",
+                "duration"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "job_id",
+          "segments"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "tutorial_timeline",
+      "description": "Read source-video or exported-video timestamps, including the mapping of recorded step markers through the chosen cuts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "export_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "tutorial_frame",
+      "description": "Decode a frame at a requested export timestamp so the agent can inspect what actually appears before writing narration. Returns a local PNG path; no image model is called.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "export_name": {
+            "type": "string"
+          },
+          "seconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "job_id",
+          "export_name",
+          "seconds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "tutorial_narrate",
+      "description": "Generate timestamped narration and mix it into a completed export. Default route: Gemini 3.8 Flash TTS through your own Google Cloud login, one request per cue, a named voice (see capture_sources, speech section) and a spend guard; other routes are a configured local speech service or a host speech tool. Measures every clip, refuses overruns without speeding/cutting speech, caches unchanged cues, and writes segment captions plus the speech credit and usage. Does not start or install a model.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "export_name": {
+            "type": "string"
+          },
+          "cues": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "number"
+                },
+                "end": {
+                  "type": "number"
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "job_id",
+          "export_name",
+          "cues"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "tutorial_step",
+      "description": "Perform ONE computer-use action through Hermes's native tool, with its approvals unchanged, while a take is recording. Mark the attempt on the media timeline and return a fresh capture for verification. A tool acknowledgment is not proof the intended UI result occurred. Use only for the user-authorized tutorial task and the selected app.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "action": {
+            "type": "object",
+            "description": "Arguments for the existing computer_use tool; use its current schema and a freshly observed target."
+          },
+          "observe": {
+            "type": "object",
+            "description": "Explicit app and window_id matching the recording; optional pid and capture mode."
+          }
+        },
+        "required": [
+          "job_id",
+          "label",
+          "action",
+          "observe"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

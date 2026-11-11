@@ -7,9 +7,7 @@ description: Turn a research topic into a narrated video, creating its stills, i
 
 1. `youtube_start_topic`, then read at least three relevant sources fully (`youtube_research_fetch`, `youtube_source_read`).
 2. `youtube_write_script`: five or six sections, each with `source_ids`, spoken parts of 100 words or fewer.
-3. ILLUSTRATIONS: run `tool_search` for "image_generate". If the host has it, you MUST call it three times (one picture for each of
-   three sections; subjects in the section "Moon-phase style lesson" below; no text inside the pictures; one redo at most if a picture
-   is physically wrong). Copy each result into the working folder, look at it with `vision_analyze`, then attach it with
+3. ILLUSTRATIONS: run `tool_search` for "image_generate". If the host has it, generate the number of illustrations the user requested (default one; no text inside the picture; one redo at most if a picture is physically wrong). Copy each result into the working folder, look at it with `vision_analyze`, then attach it with
    `youtube_material_add` or as the `image_path` of a `youtube_make_slides` slide next to the bullets. Skipping this step when the
    tool exists makes the lesson unfinished.
 4. `youtube_make_visual` (kind `cycle` for a repeating cycle, table or flowchart for the rest), attached with `project_id` and
@@ -131,7 +129,7 @@ Pictures, captions and a description are part of the default result, not extras.
 
 ## Moon-phase style lesson: pictures that carry the idea (default for a science lesson)
 
-- Make THREE generated illustrations (when the host has an image tool; at most three, no more than one redo each), each for
+- When the user asks for three illustrations, make them (at most three, no more than one redo each), each for
   a picture-worthy section: (a) sunlight lighting half of the Moon, (b) the Moon circling the Earth with the Sun far to one
   side, (c) a crescent Moon in an evening sky over a landscape (what a person actually sees). Ask the image tool for NO text,
   labels or numbers inside the pictures: put the words in the slide heading, the bullets or the captions. Look at each picture
@@ -149,16 +147,14 @@ Pictures, captions and a description are part of the default result, not extras.
 
 ## Visuals must be shown, and "carry on"
 
-- Assembly checks for charts or flowcharts you drew for this project that no section shows. A clear match
-  (by section title and words) is placed automatically and listed in `visuals_placed`; otherwise the result
-  says "N visual(s) made but not used: ..." in `visuals_notice`. Read that line. Never hand the user a video
-  with a drawn visual left out: attach it (youtube_make_visual with project_id and section_index) and assemble
-  again, or tell the user plainly that it was left out.
+- Pass the project_id and section_index to youtube_make_visual so the drawing belongs to this project. Attach and inspect all generated illustrations. Assembly shares section time among every attached picture and reports actual picture time ranges in visuals_used.
 - A stopped or failed run (provider error, closed session, "carry on") resumes from the project, not from scratch:
-  call `youtube_project_status` with no project_id, take the newest unfinished project, and follow `resume.next`.
+  call `youtube_project_status` with no project_id, take the newest unfinished project, and follow `resume.next_steps_to_completion` to the end without stopping.
   Finished steps are not redone, `youtube_narrate` skips turns already recorded and reuses a take that was paid for
   before the stop, so speech is never paid for twice.
 
 When the user says "add captions to that video", call `captions_for_latest` with kind `video` even if captions are burned in. Return its separate script caption files and explain their timing is from the script, not recognition.
 
 After assembly, use `visuals_used` and `visuals_unused` as the authoritative picture inventory in your answer; name every unused picture. Do not claim that an attached picture appears unless `visuals_used` lists it.
+
+For a carry-on request, execute the status `next_steps_to_completion` in order through delivery in this same request without asking to proceed; narration skips recorded takes.

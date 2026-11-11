@@ -89,7 +89,8 @@ def srt_time(seconds):
     return f'{ms//3600000:02}:{ms//60000%60:02}:{ms//1000%60:02},{ms%1000:03}'
 
 
-def narrate(root, job_id, export_name, cues, settings, dispatch=None):
+def narrate(root, job_id, export_name, cues, settings, dispatch=None, import_from_project=False):
+    if type(import_from_project) is not bool: raise ValueError('import_from_project must be true or false')
     export_name = clean_export_name(export_name)
     director = Director(root)
     timeline = director.timeline(job_id, export_name)
@@ -115,6 +116,22 @@ def narrate(root, job_id, export_name, cues, settings, dispatch=None):
     reference_digest = ''
     if reference_audio and backend not in ('host','gemini'):
         reference = resolve_reference(reference_audio, root)
+        origin = None
+        for parent in reference.parents:
+            meta = parent / 'project.json'
+            if meta.is_file():
+                origin = json.loads(meta.read_text()); break
+            if parent.parent == Path(root).resolve() and (parent / 'state.json').is_file():
+                origin = {'project_id': parent.name, 'topic': 'tutorial recording'}; break
+        if origin and origin.get('project_id') != job_id:
+            if not import_from_project:
+                raise ValueError('Asset belongs to project %s (%s), not tutorial project %s; set import_from_project to copy it.' % (origin.get('topic','untitled'), origin.get('project_id'), job_id))
+            import shutil
+            copied = folder / ('import-' + uuid.uuid4().hex + reference.suffix.lower())
+            shutil.copyfile(reference, copied); copied.chmod(0o600)
+            origin_file = folder / (copied.name + '.origin.json')
+            origin_file.write_text(json.dumps({'project_id': origin.get('project_id'), 'topic': origin.get('topic'), 'path': str(reference)})); origin_file.chmod(0o600)
+            reference = copied
         if reference.suffix.lower() not in ('.wav', '.flac', '.mp3') or not reference.is_file() or reference.stat().st_size > 20 * 1024 * 1024:
             raise ValueError('Choose a local WAV/FLAC/MP3 voice reference of at most20 MiB')
         if not any(s['codec_type'] == 'audio' for s in probe(reference)['streams']):

@@ -27,17 +27,18 @@ def media(value, root, allow_profile_media):
     return path
 
 
-def mix(root, narration_path, music_path, music_db=-18, voice_db=0, allow_profile_media=False, loudness_lufs=None):
-    result = _mix(root, narration_path, [{'music_path': music_path, 'start_ms': 0, 'end_ms': None, 'music_db': music_db}], voice_db, allow_profile_media, allow_open_end=True, loudness_lufs=loudness_lufs)
+def mix(root, narration_path, music_path, music_db=-18, voice_db=0, allow_profile_media=False, loudness_lufs=None, import_from_project=False):
+    result = _mix(root, narration_path, [{'music_path': music_path, 'start_ms': 0, 'end_ms': None, 'music_db': music_db}], voice_db, allow_profile_media, allow_open_end=True, loudness_lufs=loudness_lufs, import_from_project=import_from_project)
     result['music_db'] = music_db
     return result
 
 
-def mix_timeline(root, narration_path, beds, voice_db=0, allow_profile_media=False, loudness_lufs=None):
-    return _mix(root, narration_path, beds, voice_db, allow_profile_media, allow_open_end=False, loudness_lufs=loudness_lufs)
+def mix_timeline(root, narration_path, beds, voice_db=0, allow_profile_media=False, loudness_lufs=None, import_from_project=False):
+    return _mix(root, narration_path, beds, voice_db, allow_profile_media, allow_open_end=False, loudness_lufs=loudness_lufs, import_from_project=import_from_project)
 
 
-def _mix(root, narration_path, beds, voice_db, allow_profile_media, *, allow_open_end, loudness_lufs=None):
+def _mix(root, narration_path, beds, voice_db, allow_profile_media, *, allow_open_end, loudness_lufs=None, import_from_project=False):
+    if type(import_from_project) is not bool: raise ValueError('import_from_project must be true or false')
     if loudness_lufs is not None and (type(loudness_lufs) not in (int, float) or not math.isfinite(loudness_lufs) or not -30 <= loudness_lufs <= -10): raise ValueError('loudness_lufs must be -30 to -10 (spoken word is commonly about -16)')
     if locking.fcntl is None and locking.msvcrt is None: raise ValueError('Audio mixing requires supported file locking')
     if type(allow_profile_media) is not bool: raise ValueError('allow_profile_media must be boolean')
@@ -61,9 +62,30 @@ def _mix(root, narration_path, beds, voice_db, allow_profile_media, *, allow_ope
             raise ValueError('Use music gain -30 to 0 dB')
         if any(type(value) is not int or value < 0 for value in (fade_in, fade_out)) or end is not None and fade_in + fade_out > end-start or end is None and (fade_in or fade_out):
             raise ValueError('Fades must be nonnegative and fit within the bed')
-        selected.append((media(bed['music_path'], root, allow_profile_media), start, end, gain, fade_in, fade_out))
+        selected.append((media(bed['music_path'], root, allow_profile_media or import_from_project), start, end, gain, fade_in, fade_out))
         previous_end = end if end is not None else 7_200_001
     narration = media(narration_path, root, allow_profile_media)
+    def owner(path):
+        for parent in path.parents:
+            meta = parent / 'project.json'
+            if meta.is_file():
+                data = json.loads(meta.read_text())
+                if data.get('project_id'): return parent, data
+        return None
+    target = owner(narration)
+    if target:
+        bound=[]
+        for path, start, end, gain, fade_in, fade_out in selected:
+            origin = owner(path)
+            if origin and origin[1]['project_id'] != target[1]['project_id']:
+                if not import_from_project: raise ValueError('Asset belongs to project %s (%s), not project %s (%s); set import_from_project to copy it.' % (origin[1].get('topic','untitled'),origin[1]['project_id'],target[1].get('topic','untitled'),target[1]['project_id']))
+                dest = target[0] / ('import-' + uuid.uuid4().hex + path.suffix)
+                shutil.copyfile(path, dest); dest.chmod(0o600)
+                receipt = dest.with_suffix(dest.suffix + '.origin.json')
+                receipt.write_text(json.dumps({'project_id':origin[1]['project_id'],'topic':origin[1].get('topic',''),'path':str(path)})); receipt.chmod(0o600)
+                path = dest
+            bound.append((path,start,end,gain,fade_in,fade_out))
+        selected=bound
     sources = [narration] + [item[0] for item in selected]
     ffmpeg, ffprobe = shutil.which('ffmpeg'), shutil.which('ffprobe')
     if not ffmpeg or not ffprobe: raise ValueError('Install ffmpeg and ffprobe')

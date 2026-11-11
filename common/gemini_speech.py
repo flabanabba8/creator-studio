@@ -30,9 +30,8 @@ def estimate_usd(text):
     return min(max(usd, MIN_ESTIMATE_USD), RESERVATION)
 
 
-def guard_message(estimate, spent, max_usd):
-    return ('Spend guard refused this request, nothing was sent: this line is estimated at %.4f USD and %.4f USD is already spent or reserved, '
-            'so the total would pass the guard of %.4f USD. To continue, raise the spend guard (max_usd) to at least %.2f USD.' % (estimate, spent, max_usd, spent + estimate + 0.005))
+def guard_message(estimate, spent, max_usd, ledger=()):
+    return ('Spend guard: %d earlier cues were recorded with %.4f USD charged or reserved for them; the total spent or reserved is %.4f USD, and this cue was refused without being sent (estimated %.4f USD; projected total %.4f USD exceeds the %.4f USD cap).'  % (sum(r.get('status') == 'received' for r in ledger), sum(r.get('reserved_or_actual_usd',0) for r in ledger if r.get('status') == 'received'), spent, estimate, spent+estimate, max_usd))
 VOICES = {'Achernar': ('female', 'soft'), 'Achird': ('male', 'friendly'), 'Algenib': ('male', 'gravelly'), 'Algieba': ('male', 'smooth'),
           'Alnilam': ('male', 'firm'), 'Aoede': ('female', 'breezy'), 'Autonoe': ('female', 'bright'), 'Callirrhoe': ('female', 'easy-going'),
           'Charon': ('male', 'informative'), 'Despina': ('female', 'smooth'), 'Enceladus': ('male', 'breathy'), 'Erinome': ('female', 'clear'),
@@ -115,7 +114,7 @@ def synthesize(text, voice, ledger_path, max_usd=0.5, model=MODEL):
     path = Path(ledger_path)
     ledger = json.loads(path.read_text()) if path.exists() else []
     estimate = estimate_usd(text); spent = sum(r['reserved_or_actual_usd'] for r in ledger)
-    if spent + estimate > max_usd: raise GeminiSpeechError(guard_message(estimate, spent, max_usd))
+    if spent + estimate > max_usd: raise GeminiSpeechError(guard_message(estimate, spent, max_usd, ledger))
     try:
         token = access_token()
     except Exception:

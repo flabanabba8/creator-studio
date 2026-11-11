@@ -84,7 +84,7 @@ class GeminiSpeech(unittest.TestCase):
             self.call(transport, max_usd=0.0015)
         transport.assert_not_called()
         message = str(ctx.exception)
-        self.assertIn('estimate', message); self.assertIn('guard of 0.0015', message); self.assertIn('raise gemini_max_usd', message)
+        self.assertIn('estimate', message); self.assertIn('0.0015 USD cap', message); self.assertIn('1 earlier cues were recorded', message); self.assertIn('this cue was refused without being sent', message)
 
     def test_unknown_voice_and_model_refused(self):
         with self.assertRaises(ValueError): self.call(Mock(), voice='NotAVoice')

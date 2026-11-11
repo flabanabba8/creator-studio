@@ -38,7 +38,7 @@ class Base(unittest.TestCase):
 
 class SkillRules(unittest.TestCase):
     def test_skills_state_the_visual_rule_and_the_resume_path(self):
-        t=(ROOT/'skills/create-youtube-video/SKILL.md').read_text();self.assertIn('visuals_notice',t);self.assertIn('Never hand the user a video',t)
+        t=(ROOT/'skills/create-youtube-video/SKILL.md').read_text();self.assertIn('visuals_used',t);self.assertIn('every attached picture',t)
         for part,name in(('youtube_studio','create-youtube-video'),('podcast_studio','create-podcast'),('tutorial_creator','create-tutorial')):
             self.assertIn('arry on',(ROOT.parent/part/'skills'/name/'SKILL.md').read_text(),part)
 
@@ -57,7 +57,7 @@ class Speech(Base):
     def test_guard_stays_strict_and_the_refusal_explains(self):
         led=self.root/'l.json';est=g.estimate_usd('Hello there.')
         with self.assertRaises(g.GeminiSpeechError)as c:g.synthesize('Hello there.','Kore',led,max_usd=est/2)
-        m=str(c.exception);self.assertEqual(self.calls,[]);self.assertIn('estimated at %.4f'%est,m);self.assertIn('guard of %.4f'%(est/2),m);self.assertIn('raise the spend guard (max_usd) to at least',m)
+        m=str(c.exception);self.assertEqual(self.calls,[]);self.assertIn('estimated %.4f'%est,m);self.assertIn('%.4f USD cap'%(est/2),m);self.assertIn('0 earlier cues were recorded',m);self.assertIn('this cue was refused without being sent',m)
         with self.assertRaises(g.GeminiSpeechError):g.synthesize('Hello there.','Kore',led,max_usd=est*0.999)
         self.assertEqual(self.calls,[])
         # the earlier spend counts: a second request that would pass the guard is refused

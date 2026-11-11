@@ -125,8 +125,7 @@ def synthesize(text, voice, model, *, project, ledger_path, max_usd=DEFAULT_MAX_
     ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else []
     estimate = estimate_usd(text); spent = sum(row['reserved_or_actual_usd'] for row in ledger)
     if spent + estimate > max_usd:
-        raise SpeechError('Gemini spending guard refused this cue, nothing was sent: estimate %.4f USD plus %.4f USD already spent or reserved would pass the guard of %.4f USD. '
-                          'To continue, raise gemini_max_usd to at least %.2f USD.' % (estimate, spent, max_usd, spent + estimate + 0.005))
+        raise SpeechError('The spending guard: %d earlier cues were recorded with %.4f USD charged or reserved for them; the total spent or reserved is %.4f USD, and this cue was refused without being sent (estimated %.4f USD; projected total %.4f USD exceeds the %.4f USD cap).'  % (sum(r.get('status') == 'received' for r in ledger), sum(r.get('reserved_or_actual_usd',0) for r in ledger if r.get('status') == 'received'), spent, estimate, spent+estimate, max_usd))
     try:
         if credentials is None:
             import google.auth

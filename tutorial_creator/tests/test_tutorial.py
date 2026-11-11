@@ -82,6 +82,25 @@ class Boundaries(unittest.TestCase):
                             [{'start':0, 'end':2, 'text':'Hello'}], {'narration_backend':'higgs','higgs_reference_audio':str(reference)})
                 synthesis.assert_not_called()
 
+    def test_reference_from_other_project_requires_explicit_import(self):
+        with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
+            root = Path(tmp) / 'tutorial'; root.mkdir()
+            target = root / ('a' * 32); target.mkdir()
+            foreign = Path(tmp) / 'other'; foreign.mkdir()
+            (foreign / 'project.json').write_text(json.dumps({'project_id':'b' * 32, 'topic':'Other lesson'}))
+            ref = foreign / 'voice.wav'; ref.write_bytes(voice_fixture())
+            director = Mock(); director.timeline.return_value = {'seconds': 5}; director.job.return_value = target
+            settings = {'narration_backend':'higgs','higgs_reference_audio':str(ref)}
+            cues = [{'start':0, 'end':2, 'text':'Hello'}]
+            with patch('tutorial_test.narration.Director', return_value=director), patch('tutorial_test.narration.synthesize', side_effect=RuntimeError('fixture stop')):
+                with self.assertRaisesRegex(ValueError, 'Other lesson.*tutorial project'):
+                    narrate(root, 'a' * 32, 'demo.mp4', cues, settings)
+                with self.assertRaisesRegex(RuntimeError, 'fixture stop'):
+                    narrate(root, 'a' * 32, 'demo.mp4', cues, settings, import_from_project=True)
+            receipt = next(target.glob('*.origin.json'))
+            self.assertEqual(json.loads(receipt.read_text())['project_id'], 'b' * 32)
+            self.assertEqual(next(target.glob('import-*.wav')).read_bytes(), ref.read_bytes())
+
     def test_resolved_remote_address_is_never_connected(self):
         remote = str(ipaddress.IPv4Address(0x08080808))
         resolved = [(loopback.socket.AF_INET, loopback.socket.SOCK_STREAM, 6, '', (remote, 80))]

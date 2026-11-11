@@ -1,4 +1,4 @@
-# Verification of Creator Studio 0.2.2
+# Verification of Creator Studio 0.2.3
 
 This file says what was checked on the bundle. Each part's live evidence (real Gemini runs, real recordings, real captions, demos) belongs to that part's own record: see `VERIFICATION.md` inside `youtube_studio/`, `podcast_studio/`, `caption_studio/` and `tutorial_creator/`. Nothing in those records was re-run live for the bundle, and the bundle adds no new claim about speech, picture or recognizer quality.
 
@@ -53,3 +53,7 @@ These are the parts' own tests, run against the combined layout, plus the new re
 ## Added in 0.2.2
 
 Assembly reports the actual section pictures and all attached images left unused without replacing an existing section picture. Script captions are copied next to the finished media without overwriting a different file.
+
+## Added in 0.2.3
+
+Project assets are isolated unless explicitly imported. Video assembly allocates time to all attached images and reports the actual image ranges. Resume status gives an ordered completion plan, and speech-cap refusals distinguish earlier recorded cues and their costs from the cue that was not sent. Offline fixtures cover these paths, including cross-project podcast music and tutorial voice references.

@@ -26,3 +26,5 @@ Start from the user's intended result. Reuse known resource choices; ask missing
 Podcast from a finished lesson: when the user says "make a podcast episode from that lesson", call podcast_start_from_video with the video project id (youtube_project_status with no project_id lists them). It copies the lesson's saved sources and notes with no web fetch; read the sources you will cite with podcast_source_read, then go straight to podcast_write_script. Do not research again unless the user asks.
 
 "Carry on": after any stop or error, call podcast_project_status with no project_id, take the newest unfinished project and follow its resume.next. Finished steps are not redone; podcast_narrate skips turns already recorded and reuses a take paid for before the stop, so speech is never paid for twice.
+
+For a carry-on request, execute the status `next_steps_to_completion` in order through delivery in this same request without asking to proceed; narration skips recorded takes.

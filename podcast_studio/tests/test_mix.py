@@ -75,6 +75,19 @@ class MixTests(unittest.TestCase):
    onset=next(i for i,value in enumerate(samples) if abs(value)>1000)/48000
    self.assertLess(abs(onset-1),.002)
 
+ @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'ffmpeg and ffprobe required')
+ def test_other_project_music_requires_import(self):
+  with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
+   base=Path(tmp); a=base/'a';b=base/'b';a.mkdir();b.mkdir()
+   (a/'project.json').write_text(json.dumps({'project_id':'a'*32,'topic':'Episode A'}))
+   (b/'project.json').write_text(json.dumps({'project_id':'b'*32,'topic':'Episode B'}))
+   voice=a/'voice.wav';music=b/'music.wav'
+   for path in (voice,music):
+    with wave.open(str(path),'wb') as f:f.setnchannels(1);f.setsampwidth(2);f.setframerate(8000);f.writeframes(b'\0\0'*8000)
+   with self.assertRaisesRegex(ValueError,'Episode B.*Episode A'):mix(base/'out',str(voice),str(music))
+   mix(base/'out',str(voice),str(music),import_from_project=True)
+   receipt=next(a.glob('*.origin.json'));self.assertEqual(json.loads(receipt.read_text())['project_id'],'b'*32)
+
  def test_private_profile_opt_in_and_gain_validation(self):
   with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
    data=Path(tmp)/'profile'/'plugin-data';root=data/'podcast-studio';root.mkdir(parents=True);audio=data/'pagecast'/'audio.wav';audio.parent.mkdir();audio.write_bytes(b'fixture')

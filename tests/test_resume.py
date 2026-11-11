@@ -49,16 +49,16 @@ class Base(unittest.TestCase):
 
 
 class UnplacedVisuals(Base):
-    def log(self, path, title, kind='flowchart'):
+    def log(self, path, title, kind='flowchart', project_id=None):
         sha = hashlib.sha256(Path(path).read_bytes()).hexdigest()
         f = self.dir / 'visuals.json'
         rows = json.loads(f.read_text()) if f.is_file() else []
-        rows.append({'path': path, 'sha256': sha, 'title': title, 'kind': kind, 'created': 4_000_000_000})
+        rows.append({'path': path, 'sha256': sha, 'title': title, 'kind': kind, 'created': 4_000_000_000, 'project_id': project_id})
         f.write_text(json.dumps(rows))
 
     def test_matching_loose_visual_is_placed_in_its_section(self):
         m, pid, p = self.project()
-        self.log(png(self.dir / 'flow.png', 'white'), 'Why the sky is blue: scattering flowchart')
+        self.log(png(self.dir / 'flow.png', 'white'), 'Why the sky is blue: scattering flowchart', project_id=pid)
         _, data = m.load(pid)
         placed, unused = m._visuals_report(p, data)
         self.assertEqual([x['section_index'] for x in placed], [0])
@@ -67,20 +67,19 @@ class UnplacedVisuals(Base):
 
     def test_unmatched_visual_is_reported_not_silently_dropped(self):
         m, pid, p = self.project()
-        self.log(png(self.dir / 'tbl.png', 'grey'), 'Quarterly revenue', 'table')
+        self.log(png(self.dir / 'tbl.png', 'grey'), 'Quarterly revenue', 'table', project_id=pid)
         placed, unused = m._visuals_report(p, m.load(pid)[1])
-        self.assertEqual(placed, [])
-        self.assertEqual(unused[0]['visual'], 'Quarterly revenue')
+        self.assertEqual(placed[0]['visual'], 'Quarterly revenue')
+        self.assertTrue(m.load(pid)[1]['assets'])
 
     def test_a_visual_pushed_out_by_a_slide_is_found_again(self):
         m, pid, p = self.project()
         flow = png(self.dir / 'flow.png', 'white')
-        self.log(flow, 'Sunsets flowchart')
+        self.log(flow, 'Sunsets flowchart', project_id=pid)
         m.add_asset(pid, flow, 'image', 1, 'Drawn by youtube_make_visual from the supplied data (sourced: x)')
         m.add_asset(pid, png(self.dir / 'slide.png', 'black'), 'image', 1, 'Drawn by youtube_make_slides from the outline; not yet inspected')
         placed, unused = m._visuals_report(p, m.load(pid)[1])
-        self.assertEqual(placed, [])
-        self.assertEqual(unused[0]['visual'], 'Sunsets flowchart')
+        self.assertEqual(placed[0]['visual'], 'Sunsets flowchart')
         self.assertIn('youtube_make_slides', m.load(pid)[1]['assets'][m.load(pid)[1]['sections'][1]['image_id']]['review_note'])
 
     def test_unassigned_visual_from_later_project_is_not_attributed_here(self):
@@ -113,7 +112,7 @@ class UnplacedVisuals(Base):
         (self.dir / 'visuals.json').write_text(json.dumps([{'path': old, 'sha256': sha, 'title': 'Sunsets', 'kind': 'flowchart', 'created': 1.0}]))
         self.assertEqual(m._visuals_report(p, m.load(pid)[1]), ([], []))
         shown = png(self.dir / 'shown.png', 'blue')
-        self.log(shown, 'Sunsets flowchart')
+        self.log(shown, 'Sunsets flowchart', project_id=pid)
         m.add_asset(pid, shown, 'image', 1, 'Drawn by youtube_make_visual (x)')
         self.assertEqual(m._visuals_report(p, m.load(pid)[1]), ([], []))
 
@@ -126,16 +125,46 @@ class UnplacedVisuals(Base):
         for i, colour in enumerate(('white', 'black')):
             m.add_asset(pid, str(wav) if i == 0 else self._wav2(i), 'audio', i, 'tone')
             m.add_asset(pid, png(self.dir / ('s%d.png' % i), colour), 'image', i, 'Drawn by youtube_make_slides; I looked at it: plain slide')
-        self.log(png(self.dir / 'tbl.png', 'grey'), 'Quarterly revenue', 'table')
+        self.log(png(self.dir / 'tbl.png', 'grey'), 'Quarterly revenue', 'table', project_id=pid)
         out = m.assemble(pid)
-        self.assertIn('1 visual made but not used: Quarterly revenue', out['visuals_notice'])
-        self.assertEqual(out['visuals_unused'][0]['visual'], 'Quarterly revenue')
+        self.assertEqual(len(out['visuals_used']), 3)
+        self.assertEqual(out['visuals_used'][0]['start'], 0)
+        self.assertAlmostEqual(out['visuals_used'][-1]['end'], out['seconds'])
 
     def _wav2(self, i):
         path = self.dir / ('tone%d.wav' % i)
         with wave.open(str(path), 'wb') as f:
             f.setnchannels(1); f.setsampwidth(2); f.setframerate(24000); f.writeframes(b'\x01\x00' * 48000)
         return str(path)
+
+
+class ProjectIsolation(Base):
+    def test_cross_project_asset_requires_explicit_import(self):
+        for cls, kind in ((Video, 'video'), (Podcast, 'podcast')):
+            m, first, first_dir = self.project(cls=cls, kind=kind, root=self.dir / kind)
+            _, second, _ = self.project(cls=cls, kind=kind, root=self.dir / kind)
+            image = png(first_dir / 'owned.png', 'red')
+            with self.assertRaisesRegex(ValueError, first + '.*' + second):
+                m.add_asset(second, image, 'image', 0, 'reviewed')
+            imported = m.add_asset(second, image, 'image', 0, 'reviewed', import_from_project=True)
+            self.assertEqual(imported['imported_from']['project_id'], first)
+            self.assertEqual(Path(m.load(second)[0] / imported['file']).read_bytes(), Path(image).read_bytes())
+
+    def test_existing_script_never_restarts_research(self):
+        m, pid, p = self.project()
+        _, data = m.load(pid); data['sources'] = {}; data['factual'] = False
+        (p / 'project.json').write_text(json.dumps(data))
+        resume = m.status(pid)['resume']
+        self.assertIn('narrate', resume['next'])
+        self.assertFalse(any('research' in step for step in resume['next_steps_to_completion']))
+        self.assertFalse(any('research:' in item for item in resume['left']))
+
+    def test_resume_lists_every_remaining_step(self):
+        m, pid, p = self.project()
+        steps = m.status(pid)['resume']['next_steps_to_completion']
+        self.assertTrue(any('narrate' in step for step in steps))
+        self.assertTrue(any('assemble' in step for step in steps))
+        self.assertIn('Show the finished video', steps[-1])
 
 
 class Resume(Base):
@@ -194,8 +223,9 @@ class Resume(Base):
         for si, text in ((0, SECTIONS[0]['turns'][0]['text']), (1, SECTIONS[1]['turns'][0]['text'])):
             (takes / ('raw-%02d-00-%s.wav' % (si, hashlib.sha256((text + '|Charon').encode()).hexdigest()[:10]))).write_bytes(wav.read_bytes())
         with mock.patch.object(gemini_speech, 'synthesize', side_effect=AssertionError('paid twice')):
-            out = m.narrate(pid, engine='gemini', voice='Charon')
+            out = m.narrate(pid, engine='gemini', voice='Kore')
         self.assertEqual(out['recorded_now'], 2)
+        self.assertTrue(all('Charon' in a['review_note'] for a in m.load(pid)[1]['assets'].values()))
 
 
 class TutorialResume(unittest.TestCase):

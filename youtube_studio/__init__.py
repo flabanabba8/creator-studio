@@ -116,6 +116,20 @@ def invoke(name, args, ctx=None, **context):
             from plugins.plugin_storage import plugin_data_dir
             from .deck import make_slides
             args = dict(args); project_id = args.pop('project_id', None); indexes = args.pop('section_indexes', None)
+            if project_id is not None:
+                from .media_project import MediaProject
+                project = MediaProject(plugin_data_dir(STORAGE_NAMESPACE), 'video')
+                _, target = project.load(project_id)
+                for slide in args.get('slides', []):
+                    if not isinstance(slide, dict) or not slide.get('image_path'): continue
+                    source = Path(slide['image_path']).expanduser().resolve(strict=True)
+                    for parent in source.parents:
+                        meta = parent / 'project.json'
+                        if meta.is_file():
+                            origin = json.loads(meta.read_text())
+                            if origin.get('project_id') and origin['project_id'] != project_id:
+                                raise ValueError('Asset belongs to project %s (%s), not project %s (%s); explicitly import it with youtube_material_add first.' % (origin.get('topic','untitled'), origin['project_id'], target['topic'], project_id))
+                            break
             result = make_slides(plugin_data_dir(STORAGE_NAMESPACE), **args)
             if project_id is not None:
                 from .media_project import MediaProject

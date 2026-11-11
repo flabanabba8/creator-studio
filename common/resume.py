@@ -9,7 +9,9 @@ def plan(data, kind):
     recorded = sum(min(len(s['audio_ids']), len(s['turns'])) for s in sections)
     read = [s for s in data.get('sources', {}).values() if s.get('read_to', 0) >= s.get('characters', 0)]
     done, left = [], []
-    (done if data.get('sources') else left).append('sources saved (%d, %d read in full)' % (len(data.get('sources', {})), len(read)) if data.get('sources') else 'research: no sources saved yet')
+    if data.get('sources'):done.append('sources saved (%d, %d read in full)' % (len(data['sources']), len(read)))
+    elif sections and not data.get('factual', True):done.append('this non-factual script does not require research')
+    else:left.append('research: no sources saved yet')
     (done if sections else left).append('script written (%d sections)' % len(sections) if sections else 'script not written')
     if sections:
         (done if recorded == turns else left).append('narration %d of %d turns recorded' % (recorded, turns))
@@ -18,7 +20,7 @@ def plan(data, kind):
         (left if missing else done).append('pictures missing for sections %s' % missing if missing else 'every section has a picture')
     assembled = data.get('phase') == 'assembled'
     (done if assembled else left).append('assembled' if assembled else 'not assembled')
-    if not data.get('sources'):
+    if not data.get('sources') and not sections:
         nxt = prefix + '_research_fetch (or ' + prefix + '_source_add)'
     elif not sections:
         nxt = prefix + '_source_read for each source you will cite, then ' + prefix + '_write_script'
@@ -30,5 +32,13 @@ def plan(data, kind):
         nxt = prefix + '_assemble_project'
     else:
         nxt = prefix + '_episode_files and show the finished files' if kind == 'podcast' else 'nothing: it is assembled; show the finished video (result.video.output_path)'
-    return {'done': done, 'left': left, 'next': nxt, 'speech_turns_remaining': turns - recorded,
-            'rule': 'Carry on from "next": finished steps are never redone and recorded turns are never paid for twice.'}
+    steps=[]
+    if not data.get('sources') and not sections:steps.append(prefix + '_research_fetch or ' + prefix + '_source_add')
+    if not sections:steps.append(prefix + '_source_read for each cited source, then ' + prefix + '_write_script')
+    if kind == 'video' and any('not yet inspected' in data.get('assets',{}).get(s.get('image_id'),{}).get('review_note','') for s in sections):steps.append('Inspect each unreviewed picture at its status path, then record what you saw with youtube_material_add')
+    if not sections or recorded < turns:steps.append(prefix + '_narrate: reuse existing takes and record only missing turns')
+    if kind == 'video' and (not sections or any(not s.get('image_id') for s in sections)):steps.append('Create, inspect and attach pictures for sections that need them')
+    if not assembled:steps.append(prefix + '_assemble_project')
+    steps.append(prefix + '_episode_files and show the episode' if kind == 'podcast' else 'Show the finished video')
+    return {'next_steps_to_completion':steps, 'done': done, 'left': left, 'next': nxt, 'speech_turns_remaining': turns - recorded,
+            'rule': 'Run the ordered next_steps_to_completion to the end in this request without stopping to ask, unless genuinely blocked; never redo finished work or recorded turns.'}

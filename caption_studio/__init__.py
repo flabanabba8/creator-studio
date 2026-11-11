@@ -1,5 +1,6 @@
 STORAGE_NAMESPACE = 'creator-studio-captions'  # Creator Studio keeps each part's data in its own folder under plugin-data/
 import json
+import re
 from pathlib import Path
 from .core import Captions
 from .audio import AudioReview
@@ -33,9 +34,45 @@ _properties['decisions']['minItems']=0
 _properties['apply_proposed']={'type':'boolean','description':'Also apply every clear proposal from captions_audio_propose (explicit decisions win for the same cue). Ambiguous and unchanged cues stay byte-for-byte original. Returns changed, left_unchanged and needs_human summaries; changes are alignment-backed, not listened to.'}
 TOOLS['captions_audio_export']=('Save changes to a new SRT; originals are never modified. Pass apply_proposed=true to apply the clear proposals in one call (decisions may then be []), or pass explicit decisions. For a generated job, decisions=[] explicitly saves an unreviewed draft and reports draft=true; no changes are represented as listened-to or verified automatically.',_properties,['job_id'])
 
+TOOLS['captions_for_latest'] = ('Caption what this suite just made without naming files: finds the newest finished video, podcast episode or tutorial (kind = video, podcast, tutorial or any) in the suite\'s own project data. If it has captions from its own script (podcasts and narrated tutorials do; videos get them from the script timing) they are returned first, with the media path, and no recognition runs. Pass recognize=true with a recognizer (see captions_recognizer_options) to start recognition on the media instead, which is the route for media without a script. Starts the same review job as captions_generate; finish it with captions_audio_export. No burned-in copy is made.', {
+    'kind': {'type': 'string', 'enum': ['any', 'video', 'podcast', 'tutorial']},
+    'recognize': {'type': 'boolean', 'description': 'Run speech recognition on the media even if script captions exist (needs recognizer).'},
+    'recognizer': TOOLS['captions_analyse_audio'][1]['recognizer'],
+    'decoder_argv': TOOLS['captions_analyse_audio'][1]['decoder_argv'],
+    'caption_options': TOOLS['captions_generate'][1]['caption_options']}, [])
+
+
+def latest_captions(args, ctx, **context):
+    from plugins.plugin_storage import plugin_data_dir
+    import importlib.util  # path-loaded: this package is also loaded stand-alone by the dashboard route
+    spec = importlib.util.spec_from_file_location('creator_studio_latest', Path(__file__).resolve().parents[1] / 'common' / 'latest.py')
+    latest = importlib.util.module_from_spec(spec); spec.loader.exec_module(latest); find_latest = latest.find_latest
+    args = dict(args)
+    recognize, recognizer = args.pop('recognize', False), args.pop('recognizer', None)
+    item = find_latest(args.pop('kind', 'any'), plugin_data_dir('creator-studio-youtube'), plugin_data_dir('creator-studio-podcast'), plugin_data_dir('creator-studio-tutorial'))
+    if item is None:
+        raise ValueError('Nothing finished to caption yet: no assembled video, podcast episode or narrated tutorial in this profile. Make one first, or give captions_generate a media file.')
+    script = item['script_captions']
+    if script and not recognize:
+        path = Path(script['path'])
+        cues = len(re.findall(r'-->', path.read_text(encoding='utf-8', errors='replace')))
+        extra = [str(path.with_suffix(x)) for x in ('.vtt',) if path.with_suffix(x).is_file()]
+        return {'found': item, 'captions': {**script, 'srt_path': str(path), 'other_formats': extra, 'cues': cues, 'timing': 'script text on measured take timing; not word-aligned'},
+                'recognition': 'not run: this item has captions from its own script. Call again with recognize=true and a recognizer if you want them checked against the audio.',
+                'notice': 'Draft from the script, not a transcript of the audio; listen before publishing.'}
+    if not isinstance(recognizer, dict):
+        raise ValueError(('This item has no script captions' if not script else 'recognize=true needs a recognizer') + '. Call captions_recognizer_options, choose a recognizer, then call this again with recognizer set.')
+    job = json.loads(invoke('captions_generate', {'media_path': item['media_path'], 'recognizer': recognizer, 'allow_profile_media': True,
+                                                  **{k: args[k] for k in ('decoder_argv', 'caption_options') if k in args}}, ctx, **context))
+    if 'error' in job:
+        raise ValueError(job['error'])
+    return {'found': item, 'recognition_job': job, 'next': 'Review with captions_audio_review, then captions_audio_export (decisions=[] saves an unreviewed draft). The caption files appear in that export result.'}
+
+
 def invoke(name, args, ctx=None, **context):
     from plugins.plugin_storage import plugin_data_dir
     try:
+        if name == 'captions_for_latest': return json.dumps(latest_captions(args, ctx, **context))
         if name == 'captions_recognizer_options': return json.dumps(options(**args))
         if name in ('captions_analyse_audio','captions_generate'):
             secret=None

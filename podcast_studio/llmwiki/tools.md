@@ -110,6 +110,12 @@ Prepare passage-timed draft caption cues from explicitly supplied PageCast timel
 
 Inputs: `passages` (required), `strip_higgs_tags` (optional), `expected_source_sha256` (optional), `actual_source_sha256` (optional), `source_text_status` (optional).
 
+## podcast_start_from_video
+
+Start a podcast project from a finished lesson video project: copies its saved source records (same source_ids and urls, marked as copied from the video) and its script notes. No web fetch, no model call; go straight to reading the sources locally and writing the script. For "make a podcast episode from that lesson".
+
+Inputs: `video_project_id` (required), `audience` (optional).
+
 ## podcast_show_notes
 
 Prepare chapter labels and deduplicated source references from caller-supplied measured start times; does not inspect audio or verify sources.

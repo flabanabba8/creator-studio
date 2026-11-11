@@ -1,5 +1,5 @@
 name: creator-studio
-version: "0.1.0"
+version: "0.2.0"
 description: "Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, and narrated step-by-step tutorials."
 author: "Creator Studio contributors"
 license: GPL-3.0-or-later
@@ -45,9 +45,11 @@ provides_tools:
   - podcast_check_pagecast_cast
   - podcast_show_notes
   - podcast_caption_cues
+  - podcast_start_from_video
   - podcast_mix
   - podcast_mix_timeline
   - captions_generate
+  - captions_for_latest
   - captions_inspect
   - captions_retime
   - captions_suggest_alignment

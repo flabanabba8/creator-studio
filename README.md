@@ -21,11 +21,16 @@ Creator Studio bundles four plugins that research, script, narrate, caption or r
 | Part | What it is for | Skill | Tools |
 |---|---|---|---|
 | **YouTube Studio** | Research a topic, draw charts, tables, flowcharts and slides, and assemble a narrated, captioned lesson video from sources and pictures you select. Makes the file; does not upload it. | `create-youtube-video` | 19, `youtube_*` |
-| **Podcast Studio** | Research a topic, write a source-backed two-host script, check that the editorial review covers the current text, record each host in its own voice and mix optional music. Makes show notes, captions and a transcript. | `create-podcast` | 21, `podcast_*` |
-| **Caption Studio** | Create timed captions from a recording with a recognizer you choose, listen and review words and timing, and repair or retime an existing subtitle file. Originals are never overwritten. | `repair-captions` | 12, `captions_*` |
+| **Podcast Studio** | Research a topic, write a source-backed two-host script, check that the editorial review covers the current text, record each host in its own voice and mix optional music. Makes show notes, captions and a transcript. | `create-podcast` | 22, `podcast_*` |
+| **Caption Studio** | Create timed captions from a recording with a recognizer you choose, listen and review words and timing, and repair or retime an existing subtitle file. Originals are never overwritten. | `repair-captions` | 13, `captions_*` |
 | **Tutorial Creator** | Record one selected X11 window, mark the steps, optionally drive the window through Hermes `computer_use`, narrate and export a checked tutorial video under 90 seconds. | `create-tutorial` | 10, `capture_*` and `tutorial_*` |
 
-Total: 62 tools, 4 skills, no hooks, no middleware, no slash commands. Caption Studio also brings a Desktop page and a dashboard route.
+Total: 64 tools, 4 skills, no hooks, no middleware, no slash commands. Caption Studio also brings a Desktop page. There is no web dashboard tab; the API route serves the Desktop caption page.
+
+### Across the parts (new in 0.2.0)
+
+- **"Add captions to that video / episode / tutorial."** Say it in plain words, no file names. `captions_for_latest` finds the newest finished item the suite made. A podcast episode or narrated tutorial already has captions from its own script, so those come back first (nothing is recognized); a video gets script captions from its narration timing. Speech recognition runs only if you ask for it, or for media that has no script. No burned-in copy is made.
+- **"Make a podcast episode from that lesson."** `podcast_start_from_video` starts a podcast project from a finished lesson's saved sources and notes. The source ids and addresses stay the same and are marked as copied from the lesson; nothing is fetched from the web again, and you go straight to reading them locally and writing the script.
 
 ### Why these four together
 
@@ -69,7 +74,7 @@ FFmpeg and ffprobe (all media parts); `gcloud config get-value project` when Gem
 - Linux is the only platform checked. Windows file-locking was checked with synthetic media for the video and podcast parts only; no real Windows run.
 - No part can verify that sources are true, that a recognizer heard correctly, or that a voice reads a script correctly. Listen and look before you publish.
 - Gemini narration is tested against mocked transports in the unit tests; real runs are recorded in each part's own verification file.
-- Desktop and dashboard surfaces belong to Caption Studio only. They are included because they validate cleanly in this one plugin; the other parts have none.
+- The Desktop page belongs to Caption Studio only. It reaches the plugin through a small API route (`dashboard/plugin_api.py`); the dashboard tab itself is hidden because no web page exists.
 - Quality, licence and cost of speech, music and pictures depend on the services and files you select.
 - Because the suite shares one speech module between YouTube Studio and Podcast Studio, a change to Gemini routing affects both.
 - No thumbnail or demo media is bundled yet.
@@ -96,7 +101,7 @@ creator-studio/
   caption_studio/    same for Caption Studio
   tutorial_creator/  same for Tutorial Creator
   desktop/ dashboard/   Caption Studio's Desktop page and dashboard route
-  llmwiki/           one index linking the four parts and the tool reference for all 62 tools
+  llmwiki/           one index linking the four parts and the tool reference for all 64 tools
   tests/             a test that register() exposes exactly the declared tools, skills and no hooks
 ```
 

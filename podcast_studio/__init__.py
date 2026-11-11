@@ -197,6 +197,7 @@ def preflight_tool(episode_dir, style=None, require_sources=True, require_source
 
 
 TOOLS = {
+    'podcast_start_from_video': ('Start a podcast project from a finished lesson video project: copies its saved source records (same source_ids and urls, marked as copied from the video) and its script notes. No web fetch, no model call; go straight to reading the sources locally and writing the script. For "make a podcast episode from that lesson".', {'video_project_id': {'type': 'string', 'description': 'Full 32-character video project ID (youtube_project_status with no project_id lists them).'}, 'audience': {'type': 'string'}}, ['video_project_id']),
     'podcast_load_episode': ('Read an episode folder (NN-slug.txt segments with # title: and # paper:/# source: headers, SPEAKER: lines, optional meta.json) into reviewable segments. Local files only; nothing is run or sent.', {'episode_dir': {'type': 'string'}, 'require_sources': {'type': 'boolean'}}, ['episode_dir']),
     'podcast_lint_episode': ('Mechanical spoken-word checks on an episode folder under an adjustable style profile (tags none/higgs, banned tags and phrases, spoken-number rule, disabled rules). Cannot judge accuracy or quality.', {'episode_dir': {'type': 'string'}, 'style': {'type': 'object'}, 'require_sources': {'type': 'boolean'}}, ['episode_dir']),
     'podcast_preflight': ('Pre-production gate for an episode folder: lint must have no errors and editorial-review.json must match the exact current segment files; optionally require a separate source-check.md. Self-attested; verifies no claims.', {'episode_dir': {'type': 'string'}, 'style': {'type': 'object'}, 'require_sources': {'type': 'boolean'}, 'require_source_check': {'type': 'boolean'}}, ['episode_dir']),
@@ -219,6 +220,10 @@ def invoke(name, args):
             from plugins.plugin_storage import plugin_data_dir
             project=MediaProject(plugin_data_dir(STORAGE_NAMESPACE),'podcast')
             return json.dumps(getattr(project,project_tools[name][3])(**args))
+        if name == 'podcast_start_from_video':
+            from plugins.plugin_storage import plugin_data_dir
+            from .media_project import MediaProject
+            return json.dumps(MediaProject(plugin_data_dir(STORAGE_NAMESPACE),'podcast').start_from_video(plugin_data_dir('creator-studio-youtube'),**args))
         if name in ('podcast_mix', 'podcast_mix_timeline'):
             from plugins.plugin_storage import plugin_data_dir
             from .mix import mix, mix_timeline

@@ -97,3 +97,12 @@ only the clear proposals and any explicit decisions; unselected cues stay origin
 byte for byte. Reinspect the separate SRT and keep disclosure specific: static
 fixtures, actual recognition, listening review and provider/model availability
 are different checks.
+
+## "Add captions to that video / episode / tutorial"
+
+When the user means something this suite just made and names no file, call
+`captions_for_latest` (kind video, podcast, tutorial or any). If the item has captions from its
+own script it returns them first with the media path: give the user those files and say they come
+from the script, not from listening; recognition did not run. Offer recognition only if asked, or
+when the item has no script (then pick a recognizer with `captions_recognizer_options` and
+continue with the normal review and export flow). It makes no burned-in copy.

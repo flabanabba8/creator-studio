@@ -1,6 +1,6 @@
 # Creator Studio: tool reference
 
-Every tool the suite registers (62), grouped by part. Each part's own wiki has the same text plus its setup guide.
+Every tool the suite registers (64), grouped by part. Each part's own wiki has the same text plus its setup guide.
 
 
 # YouTube Studio (20 tools)
@@ -235,6 +235,12 @@ Prepare passage-timed draft caption cues from explicitly supplied PageCast timel
 
 Inputs: `passages` (required), `strip_higgs_tags` (optional), `expected_source_sha256` (optional), `actual_source_sha256` (optional), `source_text_status` (optional).
 
+## podcast_start_from_video
+
+Start a podcast project from a finished lesson video project: copies its saved source records (same source_ids and urls, marked as copied from the video) and its script notes. No web fetch, no model call; go straight to reading the sources locally and writing the script. For "make a podcast episode from that lesson".
+
+Inputs: `video_project_id` (required), `audience` (optional).
+
 ## podcast_show_notes
 
 Prepare chapter labels and deduplicated source references from caller-supplied measured start times; does not inspect audio or verify sources.
@@ -338,6 +344,12 @@ Inputs: `media_path` (required), `recognizer` (required), `decoder_argv` (option
 
 
 # Tutorial Creator (10 tools)
+
+## captions_for_latest
+
+Caption what this suite just made without naming files: finds the newest finished video, podcast episode or tutorial (kind = video, podcast, tutorial or any) in the suite's own project data. If it has captions from its own script (podcasts and narrated tutorials do; videos get them from the script timing) they are returned first, with the media path, and no recognition runs. Pass recognize=true with a recognizer (see captions_recognizer_options) to start recognition on the media instead, which is the route for media without a script. Starts the same review job as captions_generate; finish it with captions_audio_export. No burned-in copy is made.
+
+Inputs: `kind` (optional), `recognize` (optional), `recognizer` (optional), `decoder_argv` (optional), `caption_options` (optional).
 
 ## capture_sources
 

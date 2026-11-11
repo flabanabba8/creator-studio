@@ -76,3 +76,8 @@ Create new timed SRT captions from selected audio/video with an explicitly chose
 
 Inputs: `media_path` (required), `recognizer` (required), `decoder_argv` (optional), `allow_profile_media` (optional), `caption_options` (optional).
 
+## captions_for_latest
+
+Caption what this suite just made without naming files: finds the newest finished video, podcast episode or tutorial (kind = video, podcast, tutorial or any) in the suite's own project data. If it has captions from its own script (podcasts and narrated tutorials do; videos get them from the script timing) they are returned first, with the media path, and no recognition runs. Pass recognize=true with a recognizer (see captions_recognizer_options) to start recognition on the media instead, which is the route for media without a script. Starts the same review job as captions_generate; finish it with captions_audio_export. No burned-in copy is made.
+
+Inputs: `kind` (optional), `recognize` (optional), `recognizer` (optional), `decoder_argv` (optional), `caption_options` (optional).

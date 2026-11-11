@@ -48,6 +48,32 @@ class MediaProject:
         if complete and url and len(body)<1500:raise ValueError('A source marked complete must be the full text of the page you read (this one is only %d characters, which looks like a search snippet). Open the page with a page-reading tool or podcast_research_fetch and save its whole article text, or set complete to false for an excerpt you will not rely on.'%len(body))
         if len(data['sources'])>=256:raise ValueError('This project already contains256sources; create a focused part')
         ident=uuid.uuid4().hex;path=p/('source-'+ident+'.txt');path.write_text(body);path.chmod(0o600);row={'source_id':ident,'title':title,'url':url,'sha256':hashlib.sha256(body.encode()).hexdigest(),'characters':len(body),'complete_claimed':complete,'read_to':0,'verification':'provided/captured text; identity, completeness and claims require agent review'};data['sources'][ident]=row;save(p/'project.json',data);return row
+    def start_from_video(self,video_root,video_project_id,audience=None):
+        """Start a podcast project from a finished lesson's saved research. Local copy only: no fetch, no model call."""
+        vroot=Path(video_root).resolve()/'projects'
+        if not isinstance(video_project_id,str)or not ID.fullmatch(video_project_id):raise ValueError('Give the full 32-character video project ID (youtube_project_status with no project_id lists them)')
+        vp=vroot/video_project_id
+        if vp.is_symlink()or not(vp/'project.json').is_file():raise ValueError('Video project not found in this profile')
+        old=json.loads((vp/'project.json').read_text())
+        if old.get('kind')!='video':raise ValueError('That project is not a video project')
+        if not old.get('sources'):raise ValueError('That video project has no saved sources to reuse')
+        made=self.create(old['topic'],audience or old.get('audience') or 'General audience',old.get('resources')or None,bool(old.get('factual',True)))
+        new_id=made['project_id'];p,data=self.load(new_id);copied=[]
+        for sid,row in old['sources'].items():
+            src=vp/('source-'+sid+'.txt')
+            if not ID.fullmatch(sid)or src.is_symlink()or not src.is_file():raise ValueError('A saved video source file is missing: '+sid)
+            body=src.read_text()
+            if hashlib.sha256(body.encode()).hexdigest()!=row.get('sha256'):raise ValueError('A saved video source changed since it was saved: '+sid)
+            dest=p/('source-'+sid+'.txt');dest.write_text(body);dest.chmod(0o600)
+            data['sources'][sid]={**row,'read_to':0,'copied_from':{'kind':'video','project_id':video_project_id,'source_id':sid},'verification':'copied from the lesson video project (no new fetch); re-read it here before citing it'}
+            copied.append({'source_id':sid,'title':row.get('title'),'url':row.get('url'),'characters':row.get('characters')})
+        notes=['# Notes from the lesson: '+old['topic'],'']
+        for i,sec in enumerate(old.get('sections',[]),1):
+            notes+=['## %d. %s'%(i,sec['title']),'Sources: '+(', '.join(sec.get('source_ids',[]))or'none'),'']+[x['text']for x in sec.get('turns',[])]+['']
+        (p/'lesson-notes.md').write_text('\n'.join(notes));(p/'lesson-notes.md').chmod(0o600)
+        data['origin']={'kind':'video','project_id':video_project_id,'topic':old['topic'],'sources_copied':len(copied)}
+        save(p/'project.json',data)
+        return {'project_id':new_id,'topic':data['topic'],'audience':data['audience'],'origin':data['origin'],'sources':copied,'lesson_notes_file':str(p/'lesson-notes.md'),'lesson_script':[{'title':s['title'],'source_ids':s.get('source_ids',[]),'text':' '.join(x['text']for x in s.get('turns',[]))[:1500]}for s in old.get('sections',[])],'no_web_fetch':True,'next_steps':['Read each source you will cite with podcast_source_read (local, no web fetch): the reading gate for factual scripts starts again in this project.','Write the two-host script with podcast_write_script using these source_ids. Do not repeat the lesson word for word; make it a conversation.','Then narrate, assemble_project and episode_files as usual.']}
     def source_read(self,project_id,source_id,offset=0,limit=12000):
         p,data=self.load(project_id)
         if source_id not in data['sources']:raise ValueError('Unknown project source')

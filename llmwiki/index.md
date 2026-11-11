@@ -17,14 +17,15 @@ rules. Tool names start with `youtube_`, `podcast_`, `captions_`, or `capture_`/
 | Caption Studio | Captions for a recording, and repair of existing subtitles | `repair-captions` | [index](../caption_studio/llmwiki/index.md), [task guide](../caption_studio/llmwiki/task-guide.md) |
 | Tutorial Creator | Record a selected X11 window and export a narrated tutorial under 90 seconds | `create-tutorial` | [index](../tutorial_creator/llmwiki/index.md), [task guide](../tutorial_creator/llmwiki/task-guide.md) |
 
-- [Tool reference for all 62 tools](tools.md)
+- [Tool reference for all 64 tools](tools.md)
 - [Suite README](../README.md), [manifest](../plugin.yaml), [verification](../VERIFICATION.md)
 
 ## How the parts fit
 
 - YouTube Studio and Podcast Studio use the same Gemini speech code (`common/gemini_speech.py`); the
   Tutorial Creator has its own speech code with extra backends. Caption Studio can caption the audio
-  that any of them produces.
+  that any of them produces: `captions_for_latest` finds the newest finished item by itself, and
+  `podcast_start_from_video` turns a finished lesson's saved research into a podcast project.
 - Each part stores its files in its own folder under the Hermes `plugin-data` directory:
   `creator-studio-youtube`, `creator-studio-podcast`, `creator-studio-captions`, `creator-studio-tutorial`.
 - The per-part wikis are the original ones; where they say "this plugin" they mean that part.

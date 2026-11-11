@@ -15,7 +15,24 @@ MAX_WORDS = 100
 # Conservative full list rates (USD per token); promotional credits are not assumed.
 INPUT_USD = 1 / 1_000_000
 OUTPUT_USD = 18 / 1_000_000
-RESERVATION = 8192 * INPUT_USD + 16384 * OUTPUT_USD
+RESERVATION = 8192 * INPUT_USD + 16384 * OUTPUT_USD  # old flat reservation: now only the upper bound of one estimate
+MIN_ESTIMATE_USD = 0.002
+SAFETY = 2.0  # margin over the published-rate estimate
+
+
+def estimate_usd(text):
+    """Cost reserved for one request, from the text length and the published per-token prices.
+    Audio output is 25 tokens per second; speech is assumed slow (1.5 words per second) plus 2 s, then doubled."""
+    words = len(text.split())
+    seconds = words / 1.5 + 2
+    tokens_in = len(text) / 2 + 50
+    usd = (tokens_in * INPUT_USD + seconds * 25 * OUTPUT_USD) * SAFETY
+    return min(max(usd, MIN_ESTIMATE_USD), RESERVATION)
+
+
+def guard_message(estimate, spent, max_usd):
+    return ('Spend guard refused this request, nothing was sent: this line is estimated at %.4f USD and %.4f USD is already spent or reserved, '
+            'so the total would pass the guard of %.4f USD. To continue, raise the spend guard (max_usd) to at least %.2f USD.' % (estimate, spent, max_usd, spent + estimate + 0.005))
 VOICES = {'Achernar': ('female', 'soft'), 'Achird': ('male', 'friendly'), 'Algenib': ('male', 'gravelly'), 'Algieba': ('male', 'smooth'),
           'Alnilam': ('male', 'firm'), 'Aoede': ('female', 'breezy'), 'Autonoe': ('female', 'bright'), 'Callirrhoe': ('female', 'easy-going'),
           'Charon': ('male', 'informative'), 'Despina': ('female', 'smooth'), 'Enceladus': ('male', 'breathy'), 'Erinome': ('female', 'clear'),
@@ -97,14 +114,15 @@ def synthesize(text, voice, ledger_path, max_usd=0.5, model=MODEL):
     if pid is None: raise GeminiSpeechError('No default Google Cloud project is configured on this computer; no request was sent')
     path = Path(ledger_path)
     ledger = json.loads(path.read_text()) if path.exists() else []
-    if sum(r['reserved_or_actual_usd'] for r in ledger) + RESERVATION > max_usd: raise GeminiSpeechError('Spend guard reached (%.2f USD); no speech request was sent' % max_usd)
+    estimate = estimate_usd(text); spent = sum(r['reserved_or_actual_usd'] for r in ledger)
+    if spent + estimate > max_usd: raise GeminiSpeechError(guard_message(estimate, spent, max_usd))
     try:
         token = access_token()
     except Exception:
         raise GeminiSpeechError('Could not get Google credentials before sending; no request was sent') from None
     url = 'https://aiplatform.googleapis.com/v1/projects/%s/locations/global/publishers/google/models/%s:generateContent' % (pid, model)
     body = {'contents': [{'role': 'user', 'parts': [{'text': text}]}], 'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'voice': voice}}}}
-    row = {'started': time.time(), 'status': 'pending', 'voice': voice, 'reserved_or_actual_usd': RESERVATION}
+    row = {'started': time.time(), 'status': 'pending', 'voice': voice, 'reserved_or_actual_usd': estimate}
     ledger.append(row); _save(path, ledger)
     try:
         status, content = transport(url, {'Authorization': 'Bearer ' + token, 'x-goog-user-project': pid}, body)

@@ -55,7 +55,7 @@ class Route(unittest.TestCase):
         cues=module.caption_cues([{'start_seconds':t['start'],'end_seconds':t['end'],'text':t['text'],'speaker':t['speaker']} for t in turns])['cues']
         self.assertEqual(cues[1]['label'],'Guest: Glad to be here.')
     def test_spend_guard(self):
-        with self.assertRaises(g.GeminiSpeechError):g.synthesize('hello','Kore',self.root/'l.json',max_usd=0.05)
+        with self.assertRaises(g.GeminiSpeechError):g.synthesize('hello','Kore',self.root/'l.json',max_usd=0.001)
         self.assertEqual(self.calls,[])
 class Files(Route):
     @unittest.skipUnless(HAVE,'ffmpeg required')

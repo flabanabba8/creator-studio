@@ -67,7 +67,7 @@ Inputs: `project_id` (required), `image_tool_available` (required).
 
 ## youtube_project_status
 
-Read actual project sources/script/materials and production state; creates no model request.
+Read actual project sources/script/materials and production state; creates no model request. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.
 
 Inputs: `project_id` (required), `offset` (optional), `limit` (optional).
 
@@ -183,7 +183,7 @@ Inputs: `project_id` (required), `output_dir` (optional).
 
 ## podcast_project_status
 
-Read actual project sources/script/materials and production state; creates no model request.
+Read actual project sources/script/materials and production state; creates no model request. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.
 
 Inputs: `project_id` (required), `offset` (optional), `limit` (optional).
 
@@ -365,9 +365,9 @@ Inputs: `window_id` (required), `display` (optional), `max_seconds` (optional), 
 
 ## capture_status
 
-Read recording state, media duration and step markers.
+Read recording state, media duration and step markers. With no job_id it lists the newest recordings with what each still needs (the resume path for "carry on"): export, narrate or nothing; already spoken cues are cached and never paid for twice.
 
-Inputs: `job_id` (required).
+Inputs: `job_id` (optional).
 
 ## capture_mark
 

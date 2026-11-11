@@ -71,8 +71,20 @@ class GeminiSpeech(unittest.TestCase):
     def test_spend_guard_blocks_before_any_request(self):
         transport = Mock()
         with self.assertRaisesRegex(gemini_speech.SpeechError, 'spending guard'):
-            self.call(transport, max_usd=0.0001)
+            self.call(transport, max_usd=0.001)
         transport.assert_not_called()
+
+    def test_guard_is_proportional_strict_and_explains_the_refusal(self):
+        est = gemini_speech.estimate_usd('Hello there.')
+        self.assertLess(est, 0.01)
+        self.call(lambda *a: ok_response(), max_usd=0.05)   # a small guard no longer blocks a short cue
+        self.assertGreater(gemini_speech.estimate_usd('word ' * 250), gemini_speech.estimate_usd('word ' * 20))
+        transport = Mock()
+        with self.assertRaises(gemini_speech.SpeechError) as ctx:
+            self.call(transport, max_usd=0.0015)
+        transport.assert_not_called()
+        message = str(ctx.exception)
+        self.assertIn('estimate', message); self.assertIn('guard of 0.0015', message); self.assertIn('raise gemini_max_usd', message)
 
     def test_unknown_voice_and_model_refused(self):
         with self.assertRaises(ValueError): self.call(Mock(), voice='NotAVoice')

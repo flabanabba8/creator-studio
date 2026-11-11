@@ -54,7 +54,7 @@ class Route(unittest.TestCase):
         self.assertEqual(self.calls,[])
     def test_spend_guard_blocks_before_any_request(self):
         led=self.root/'led.json'
-        with self.assertRaises(g.GeminiSpeechError)as c:g.synthesize('hello','Kore',led,max_usd=0.05)
+        with self.assertRaises(g.GeminiSpeechError)as c:g.synthesize('hello','Kore',led,max_usd=0.001)
         self.assertEqual(self.calls,[]);self.assertIn('Spend guard',str(c.exception))
     def test_rejected_request_is_not_retried_and_hides_the_project(self):
         led=self.root/'led.json'

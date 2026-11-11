@@ -1,4 +1,4 @@
-# Verification of Creator Studio 0.2.0
+# Verification of Creator Studio 0.2.1
 
 This file says what was checked on the bundle. Each part's live evidence (real Gemini runs, real recordings, real captions, demos) belongs to that part's own record: see `VERIFICATION.md` inside `youtube_studio/`, `podcast_studio/`, `caption_studio/` and `tutorial_creator/`. Nothing in those records was re-run live for the bundle, and the bundle adds no new claim about speech, picture or recognizer quality.
 
@@ -20,6 +20,7 @@ tests/run_all.sh
 |---|---|---|
 | Suite register test (exact tools, skills, no hooks, tool reference) | 6 | pass |
 | Cross-part features (caption the latest item, podcast from a lesson; tiny fixtures, no network, no speech, no recognition) | 11 | pass |
+| Unplaced visuals and resume (placement, notice from a real 2-section assembly, status resume block, narration resume with a mocked speech call, reuse of a paid take, tutorial status list) | 11 | pass |
 | YouTube Studio | 65 | pass |
 | Podcast Studio | 38 | pass |
 | Caption Studio (Python) | 40 | pass |
@@ -37,6 +38,11 @@ These are the parts' own tests, run against the combined layout, plus the new re
 - `captions_for_latest` and `podcast_start_from_video` were tested only with the fixture tests above: small made-up project folders, a mocked caption job, and a check that the podcast copy opens no network connection and starts no process. Not tested: a live Hermes run, a real recognizer through `captions_for_latest`, or a real narrated podcast written from a copied lesson.
 - The Desktop caption page was not opened against the new tool (it does not use it).
 - Checked that the Desktop page needs the API route: its scripts post every action to `/action`, which `dashboard/plugin_api.py` serves, so the dashboard folder stays; the tab stays hidden.
+
+## Added in 0.2.1
+
+- Two fixes from the live test: assembly now places a drawn chart or flowchart that no section shows when its title clearly matches a section, otherwise says "N visual(s) made but not used: ..."; and `youtube_project_status` / `podcast_project_status` (no id) and `capture_status` (no id) give a resume plan so "carry on" repeats no finished step. Tested only with fixtures and mocked speech (a real ffmpeg render of two tiny slides was used for the assembly test); not re-run live in Hermes. The provider "prompt flagged" error itself is not handled, only recovered from.
+- Gemini speech spend guard: the shared speech code reserved a flat about 0.30 USD per request, so a guard below about 0.31 USD refused every line. The reservation is now estimated from the text length (published per-token prices, 25 audio tokens per second, slow-speech assumption, a 2x margin, a 0.002 USD minimum); the guard is still strict (spent plus estimate must not pass it) and a refusal states the estimate, the guard and what to raise. The tutorial part's own speech copy had the same flat floor (about 0.076 USD) and got the same change. Fixture tests only (mocked transport); the estimate was not compared against a new live bill.
 
 ## Not verified
 

@@ -127,3 +127,7 @@ A beginner must be able to follow every step on screen.
 - Narrate only what a frame of the export shows. NEVER say that a clip "skips", "omits" or "shortens" anything and never
   mention the cutting, the recording or the plugin; the lesson must read as one smooth walk-through.
 - Each cue is one short sentence (about 4 seconds of speech) that names the command and what its output means.
+
+## "Carry on"
+
+After a stop or provider error, call `capture_status` with no job_id: it lists the newest recordings and the one next step for each (stop, export, narrate, or finished). Do not record again if the recording is complete. `tutorial_narrate` caches every spoken cue, so repeating it only pays for cues not yet spoken.

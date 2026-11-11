@@ -241,7 +241,32 @@ class Director:
             time.sleep(.1)
         return self.status(job_id)
 
-    def status(self, job_id):
+    def resume(self, limit=5):
+        """List the newest recordings with what each still needs, so 'carry on' needs no ids. Read-only."""
+        rows = []
+        for folder in sorted((x for x in self.root.iterdir() if re.fullmatch(r'[a-f0-9]{32}', x.name) and x.is_dir() and not x.is_symlink()), key=lambda x: x.stat().st_mtime, reverse=True)[:limit]:
+            try:
+                state = self.status(folder.name)
+            except (ValueError, OSError, KeyError):
+                continue
+            exports = sorted(x.name for x in folder.glob('export-*.mp4'))
+            narrated = sorted(x.name for x in folder.glob('narrated-*.mp4'))
+            if state['state'] in ('starting', 'recording', 'stopping'):
+                nxt = 'capture_status, then capture_stop when the steps are done'
+            elif state['state'] != 'complete':
+                nxt = 'recording ended as ' + state['state'] + '; the raw take may be recoverable, otherwise start a new take'
+            elif not exports:
+                nxt = 'capture_export (the recording is finished; choose the segments to keep)'
+            elif not narrated:
+                nxt = 'tutorial_narrate on ' + exports[-1] + ' (cues already spoken are cached and not paid for again)'
+            else:
+                nxt = 'nothing: finished; show ' + narrated[-1]
+            rows.append({'job_id': folder.name, 'state': state['state'], 'media_seconds': state.get('media_seconds'), 'steps_marked': len(state.get('marks', [])), 'exports': exports, 'narrated': narrated, 'next': nxt})
+        return {'recordings': rows, 'rule': 'Carry on from "next": finished steps are never redone and spoken cues are cached, so nothing is paid for twice.'}
+
+    def status(self, job_id=None):
+        if job_id is None:
+            return self.resume()
         folder = self.job(job_id)
         state = json.loads((folder / 'state.json').read_text())
         owner_path = folder / 'owner.json'

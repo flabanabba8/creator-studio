@@ -146,3 +146,15 @@ Pictures, captions and a description are part of the default result, not extras.
 - Never describe the Moon's phases as being caused by Earth's shadow, not even as "usually" or "not usually": phases are never
   Earth's shadow (only a lunar eclipse is). Say instead that the Sun always lights half the Moon and we see different amounts of
   that lit half. A slide that has a picture gives the picture the right half of the frame.
+
+## Visuals must be shown, and "carry on"
+
+- Assembly checks for charts or flowcharts you drew for this project that no section shows. A clear match
+  (by section title and words) is placed automatically and listed in `visuals_placed`; otherwise the result
+  says "N visual(s) made but not used: ..." in `visuals_notice`. Read that line. Never hand the user a video
+  with a drawn visual left out: attach it (youtube_make_visual with project_id and section_index) and assemble
+  again, or tell the user plainly that it was left out.
+- A stopped or failed run (provider error, closed session, "carry on") resumes from the project, not from scratch:
+  call `youtube_project_status` with no project_id, take the newest unfinished project, and follow `resume.next`.
+  Finished steps are not redone, `youtube_narrate` skips turns already recorded and reuses a take that was paid for
+  before the stop, so speech is never paid for twice.

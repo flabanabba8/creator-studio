@@ -185,9 +185,12 @@ class MediaProject:
             data=json.loads((p/'project.json').read_text())
             if ti<len(data['sections'][si]['audio_ids']):skipped+=1;continue
             v=voices.get(speaker,voice);used[speaker]=v
-            try:wav=g.synthesize(text_,v,ledger,max_usd)
-            except g.GeminiSpeechError as exc:raise RuntimeError('%s (section %d turn %d; %d recorded so far)'%(exc,si,ti,done))from None
-            rawfile=takes/('raw-%02d-%02d.wav'%(si,ti));rawfile.write_bytes(wav);rawfile.chmod(0o600);norm=takes/('turn-%02d-%02d.wav'%(si,ti))
+            raw_name='raw-%02d-%02d-%s.wav'%(si,ti,hashlib.sha256((text_+'|'+v).encode()).hexdigest()[:10]);kept=takes/raw_name
+            if kept.is_file()and kept.stat().st_size>0:wav=kept.read_bytes()  # paid for before the run stopped: reuse, never pay twice
+            else:
+                try:wav=g.synthesize(text_,v,ledger,max_usd)
+                except g.GeminiSpeechError as exc:raise RuntimeError('%s (section %d turn %d; %d recorded so far)'%(exc,si,ti,done))from None
+            rawfile=kept;rawfile.write_bytes(wav);rawfile.chmod(0o600);norm=takes/('turn-%02d-%02d.wav'%(si,ti))
             r=subprocess.run([ffmpeg,'-v','error','-nostdin','-y','-i',str(rawfile),'-ac','1','-ar','24000','-c:a','pcm_s16le',str(norm)],stdin=subprocess.DEVNULL,env=environment(),timeout=120)
             if r.returncode or not norm.is_file():raise RuntimeError('Could not normalize the recording for section %d turn %d (raw take kept)'%(si,ti))
             with wave.open(str(norm),'rb')as f:total+=f.getnframes()/f.getframerate()
@@ -241,12 +244,14 @@ class MediaProject:
             for x in sorted(self.root.iterdir()if self.root.is_dir()else[],key=lambda q:q.stat().st_mtime,reverse=True):
                 try:d=json.loads((x/'project.json').read_text())
                 except Exception:continue
-                rows.append({'project_id':d['project_id'],'topic':d['topic'],'phase':d.get('phase'),'sources':len(d['sources']),'sections':len(d['sections']),'materials':len(d.get('assets',{}))})
+                from ..common.resume import plan
+                rows.append({'project_id':d['project_id'],'topic':d['topic'],'phase':d.get('phase'),'next':plan(d,self.kind)['next'],'sources':len(d['sources']),'sections':len(d['sections']),'materials':len(d.get('assets',{}))})
             return {'projects':rows[:20],'note':'Existing projects in this profile, newest first. Pass a project_id to read one.'}
         p,data=self.load(project_id)
+        from ..common.resume import plan as resume_plan
         if type(offset)is not int or offset<0 or type(limit)is not int or not 1<=limit<=10:raise ValueError('Choose a bounded project summary page')
         sources=list(data['sources'].values());assets=list(data['assets'].values());sections=data['sections'];end=offset+limit
-        return {'project_id':project_id,'phase':data['phase'],'topic':data['topic'],'audience':data['audience'],'source_count':len(sources),'asset_count':len(assets),'section_count':len(sections),'sources':[{'source_id':x['source_id'],'title':x['title'],'characters':x['characters'],'read_to':x['read_to']}for x in sources[offset:end]],'assets':[{'asset_id':x['asset_id'],'kind':x['kind'],'file':x['file'],'review_note_recorded':bool(x['review_note'])}for x in assets[offset:end]],'sections':[{'title':x['title'],'turn_count':len(x['turns']),'audio_count':len(x['audio_ids']),'image_id':x['image_id'],'source_ids':x['source_ids']}for x in sections[offset:end]],'next_offset':end if end<max(len(sources),len(assets),len(sections))else None,'result':data.get('result',{})}
+        return {'project_id':project_id,'phase':data['phase'],'topic':data['topic'],'audience':data['audience'],'source_count':len(sources),'asset_count':len(assets),'section_count':len(sections),'sources':[{'source_id':x['source_id'],'title':x['title'],'characters':x['characters'],'read_to':x['read_to']}for x in sources[offset:end]],'assets':[{'asset_id':x['asset_id'],'kind':x['kind'],'file':x['file'],'review_note_recorded':bool(x['review_note'])}for x in assets[offset:end]],'sections':[{'title':x['title'],'turn_count':len(x['turns']),'audio_count':len(x['audio_ids']),'image_id':x['image_id'],'source_ids':x['source_ids']}for x in sections[offset:end]],'next_offset':end if end<max(len(sources),len(assets),len(sections))else None,'result':data.get('result',{}),'resume':resume_plan(data,self.kind)}
     def assemble(self,project_id):
         p,data=self.load(project_id)
         if not data['sections']:raise ValueError('Write the researched script first')
@@ -318,4 +323,4 @@ def schemas(prefix):
         prefix+'_narrate':('Record the whole script with Gemini 3.8 Flash TTS (Vertex AI, set up on this computer; see gemini_speech from the start tool): one request per spoken turn (100 words or fewer), no rerolls, raw takes kept, normalized and attached to the right section in order. Pass voice for one host or voices {speaker: voice name} so different speakers get clearly different voices; the voice list says gender and trait. A 0.50 USD spend guard (max_usd) applies and usage is returned. The Google Cloud project is read from the machine configuration and never shown. Turns already recorded are skipped.',{**ref,'voice':s,'voices':{'type':'object','additionalProperties':{'type':'string'}},'max_usd':{'type':'number','exclusiveMinimum':0,'maximum':100}},['project_id'],'narrate'),
         prefix+'_episode_files':('After assembly: write the show notes (chapters with start times, hosts and their voices, sources actually cited), speaker-labelled captions (captions.srt and captions.vtt, one cue per sentence with the host name) and a timed transcript from the measured timeline. Optional output_dir also copies them into an existing folder. Use this instead of building notes by hand.',{**ref,'output_dir':s},['project_id'],'episode_files'),
         prefix+'_assemble_project':('Assemble attached measured speech and, for video, reviewed images into a real local output. Missing material or unsupported audio blocks assembly; no placeholder success.',ref,['project_id'],'assemble'),
-        prefix+'_project_status':('Read actual project sources/script/materials and production state; creates no model request. Call it with no project_id to list the existing projects (ID, topic, phase) so earlier work can be found and continued.',{**ref,'offset':i,'limit':{'type':'integer','minimum':1,'maximum':10}},[],'status')}
+        prefix+'_project_status':('Read actual project sources/script/materials and production state; creates no model request. Call it with no project_id to list the existing projects (ID, topic, phase) so earlier work can be found and continued. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.',{**ref,'offset':i,'limit':{'type':'integer','minimum':1,'maximum':10}},[],'status')}

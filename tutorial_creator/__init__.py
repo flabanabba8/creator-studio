@@ -20,7 +20,7 @@ TOOLS = {
         'capture_mode': {'type': 'string', 'enum': ['window', 'window_region'], 'description': 'window records the selected drawable. Explicit window_region records its fixed on-screen rectangle, including dialogs/overlapping pixels inside it. Use a private display; keep unrelated windows/notifications away, and do not move/resize the selected window.'},
         'show_cursor': {'type': 'boolean', 'description': 'Show the real pointer in the recording; useful for guided tutorials. Default false.'},
         'audio_stream': {'type': 'integer', 'minimum': 0, 'description': 'Optional exact audio stream ID returned by capture_sources; omitted means silent video.'}}, ['window_id']),
-    'capture_status': ('Read recording state, media duration and step markers.', {'job_id': {'type': 'string'}}, ['job_id']),
+    'capture_status': ('Read recording state, media duration and step markers. With no job_id it lists the newest recordings with what each still needs (the resume path for "carry on"): export, narrate or nothing; already spoken cues are cached and never paid for twice.', {'job_id': {'type': 'string'}}, []),
     'capture_mark': ('Mark a demonstration step on the current media timeline, approximately half-second precision.', {
         'job_id': {'type': 'string'}, 'label': {'type': 'string', 'maxLength': 160}}, ['job_id', 'label']),
     'capture_stop': ('Stop this plugin-owned recording and restore its selected audio route.', {'job_id': {'type': 'string'}}, ['job_id']),

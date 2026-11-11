@@ -16,9 +16,9 @@ Inputs: `window_id` (required), `display` (optional), `max_seconds` (optional), 
 
 ## capture_status
 
-Read recording state, media duration and step markers.
+Read recording state, media duration and step markers. With no job_id it lists the newest recordings with what each still needs (the resume path for "carry on"): export, narrate or nothing; already spoken cues are cached and never paid for twice.
 
-Inputs: `job_id` (required).
+Inputs: `job_id` (optional).
 
 ## capture_mark
 

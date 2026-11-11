@@ -14,7 +14,17 @@ DEFAULT_VOICE = 'Achird'
 DEFAULT_MAX_USD = 0.50
 INPUT_USD = 1 / 1_000_000   # conservative full list rates; promotional credits are not assumed
 OUTPUT_USD = 18 / 1_000_000
-RESERVATION = 2048 * INPUT_USD + 4096 * OUTPUT_USD
+MIN_ESTIMATE_USD = 0.002
+SAFETY = 2.0  # margin over the published-rate estimate
+
+
+def estimate_usd(text):
+    """Cost reserved for one cue, from the text length and the published per-token prices.
+    Audio output is 25 tokens per second; speech is assumed slow (1.5 words per second) plus 2 s, then doubled."""
+    seconds = len(text.split()) / 1.5 + 2
+    tokens_in = len(text) / 2 + 50
+    usd = (tokens_in * INPUT_USD + seconds * 25 * OUTPUT_USD) * SAFETY
+    return max(usd, MIN_ESTIMATE_USD)
 MAX_RESPONSE = 32 * 1024 * 1024
 # name: (gender, measured median pitch Hz, trait). Measured on this project's own calibration take.
 VOICES = {
@@ -113,8 +123,10 @@ def synthesize(text, voice, model, *, project, ledger_path, max_usd=DEFAULT_MAX_
     if isinstance(max_usd, bool) or not isinstance(max_usd, (int, float)) or not 0 < max_usd <= 100:
         raise ValueError('Set a Gemini speech budget between 0 and 100 USD')
     ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else []
-    if sum(row['reserved_or_actual_usd'] for row in ledger) + RESERVATION > max_usd:
-        raise SpeechError('Gemini spending guard reached; no speech request sent')
+    estimate = estimate_usd(text); spent = sum(row['reserved_or_actual_usd'] for row in ledger)
+    if spent + estimate > max_usd:
+        raise SpeechError('Gemini spending guard refused this cue, nothing was sent: estimate %.4f USD plus %.4f USD already spent or reserved would pass the guard of %.4f USD. '
+                          'To continue, raise gemini_max_usd to at least %.2f USD.' % (estimate, spent, max_usd, spent + estimate + 0.005))
     try:
         if credentials is None:
             import google.auth
@@ -128,7 +140,7 @@ def synthesize(text, voice, model, *, project, ledger_path, max_usd=DEFAULT_MAX_
     body = {'contents': [{'role': 'user', 'parts': [{'text': text}]}],
             'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'voice': voice}}}}
     headers = {'Authorization': 'Bearer ' + token, 'x-goog-user-project': project}
-    row = {'started': time.time(), 'status': 'pending', 'model': model, 'voice': voice, 'reserved_or_actual_usd': RESERVATION}
+    row = {'started': time.time(), 'status': 'pending', 'model': model, 'voice': voice, 'reserved_or_actual_usd': estimate}
     ledger.append(row); _save(ledger_path, ledger)
     try:
         if transport is None:

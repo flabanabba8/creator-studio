@@ -32,6 +32,8 @@ Total: 64 tools, 4 skills, no hooks, no middleware, no slash commands. Caption S
 - **"Add captions to that video / episode / tutorial."** Say it in plain words, no file names. `captions_for_latest` finds the newest finished item the suite made. A podcast episode or narrated tutorial already has captions from its own script, so those come back first (nothing is recognized); a video gets script captions from its narration timing. Speech recognition runs only if you ask for it, or for media that has no script. No burned-in copy is made.
 - **"Make a podcast episode from that lesson."** `podcast_start_from_video` starts a podcast project from a finished lesson's saved sources and notes. The source ids and addresses stay the same and are marked as copied from the lesson; nothing is fetched from the web again, and you go straight to reading them locally and writing the script.
 
+- **Carry on.** A stopped or failed run resumes from the project: `youtube_project_status` and `podcast_project_status` (no id) list projects with their next step, `capture_status` (no id) does the same for recordings, and speech already recorded is never paid for twice. A lesson video also says plainly if a chart or flowchart was made but left out.
+
 ### Why these four together
 
 All four research, script, narrate, caption or record media. YouTube Studio and Podcast Studio overlap and already shared the same speech code (`gemini_speech.py`, the Gemini 3.8 Flash TTS route), so the suite carries that code once, in `common/`, together with the file lock and the page reader they also shared. Caption Studio can caption audio that any of the other parts produces, and Tutorial Creator is the screen-recording counterpart of the video parts. The Tutorial Creator keeps its own speech code because it supports more narration backends.
@@ -56,7 +58,7 @@ Restart Hermes (or start a new session) afterwards. If you also have one of the 
 ## What it calls on the internet
 
 - Public web pages, when you ask a research or source tool to read them (YouTube Studio and Podcast Studio), through the Camoufox browser you selected. Public addresses only; no browser download.
-- `aiplatform.googleapis.com` (Google Vertex AI), only when you choose Gemini narration, using your own Google login and project, behind a per-project or per-tutorial spend guard (default 0.50 USD).
+- `aiplatform.googleapis.com` (Google Vertex AI), only when you choose Gemini narration, using your own Google login and project, behind a per-project or per-tutorial spend guard (default 0.50 USD; each request is reserved in proportion to its text, and a refusal states the estimate and what to raise).
 - A speech recognizer you select in Caption Studio: local commands send nothing; an HTTP recognizer receives audio only after your explicit consent for that run.
 - Loopback ports on your own computer: YouTube Studio probes ports 8000, 8001, 8080, 5000, 8880 and 7860 on 127.0.0.1 to find a speech server; Tutorial Creator can talk to a loopback speech server you configure.
 - No telemetry, no update checks, no self-updater. Updates reach you only through a new pinned version of this plugin.

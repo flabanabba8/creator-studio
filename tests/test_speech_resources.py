@@ -227,6 +227,82 @@ class Catalog(unittest.TestCase):
             self.assertEqual((other / 'llmwiki' / 'speech-models.md').read_text(), self.wiki)
 
 
+class Staleness(unittest.TestCase):
+    import datetime as _d
+    EXP = [{'date': '2026-12-31', 'what': 'promo ends'}]
+
+    def day(self, y, m, d):
+        return self._d.date(y, m, d)
+
+    def test_fresh_knowledge_is_not_stale_and_does_not_nag(self):
+        f = sr.freshness('2026-11-12', self.EXP, None, self.day(2026, 11, 20))
+        self.assertFalse(f['stale']); self.assertEqual(f['reasons'], []); self.assertIsNone(f['offer'])
+
+    def test_old_knowledge_is_stale_and_the_offer_asks_before_researching(self):
+        f = sr.freshness('2026-09-01', [], None, self.day(2026, 11, 20))
+        self.assertTrue(f['stale']); self.assertIn('days ago', f['reasons'][0])
+        self.assertIn('ASK whether', f['offer']); self.assertIn('Do not research without their yes', f['offer'])
+
+    def test_a_passed_deadline_makes_it_stale_even_when_recently_checked(self):
+        f = sr.freshness('2027-01-02', self.EXP, None, self.day(2027, 1, 3))
+        self.assertTrue(f['stale']); self.assertIn('deadline has passed', f['reasons'][0])
+
+    def test_an_approaching_deadline_is_flagged_but_not_stale(self):
+        f = sr.freshness('2026-12-20', self.EXP, None, self.day(2026, 12, 25))
+        self.assertFalse(f['stale']); self.assertEqual(len(f['coming_up']), 1); self.assertIsNotNone(f['offer'])
+
+    def test_approved_research_resets_the_age(self):
+        self.assertTrue(sr.freshness('2026-09-01', [], None, self.day(2026, 11, 20))['stale'])
+        self.assertFalse(sr.freshness('2026-09-01', [], '2026-11-19', self.day(2026, 11, 20))['stale'])
+
+    def test_missing_date_counts_as_stale(self):
+        self.assertTrue(sr.freshness(None, [], None, self.day(2026, 11, 20))['stale'])
+
+    def test_every_catalog_deadline_has_a_source_and_the_real_catalog_reports_freshness(self):
+        cat = sr.load_catalog()
+        for e in cat['expiries']:
+            self.assertTrue(e['source'].startswith('https://')); self.assertRegex(e['date'], r'^\d{4}-\d\d-\d\d$')
+        with tempfile.TemporaryDirectory() as d:
+            out = sr.interview({}, Path(d) / 'ns', found(['flite']))
+            self.assertIn('knowledge_freshness', out); self.assertIn('knowledge_freshness', out['instructions_for_agent'])
+
+    def test_research_updates_are_validated_stored_privately_and_laid_over_the_catalog(self):
+        ok = {'id': 'gemini', 'field': 'free_tier', 'value': 'NEW', 'source': 'https://aistudio.google.com/docs/pricing', 'date': '2026-11-12'}
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / 'ns'
+            for bad in ({**ok, 'id': 'nope'}, {**ok, 'field': 'tier'}, {**ok, 'source': 'http://x'}, {**ok, 'date': '2099-01-01'}, {**ok, 'extra': 1}, {**ok, 'value': 'x' * 2000}):
+                with self.assertRaises(ValueError):
+                    sr.save_updates(root, [bad], sr.known_ids(), self.day(2026, 11, 12))
+            with self.assertRaises(ValueError):
+                sr.save_updates(root, [], sr.known_ids())
+            sr.save_updates(root, [ok], sr.known_ids(), self.day(2026, 11, 12))
+            self.assertEqual(oct(sr._updates_path(root).stat().st_mode & 0o777), '0o600')
+            cat = sr.load_catalog(update_root=root)
+            row = [r for r in cat['remote'] if r['id'] == 'gemini'][0]
+            self.assertEqual(row['free_tier'], 'NEW'); self.assertEqual(row['updated_by_research']['free_tier']['date'], '2026-11-12')
+            self.assertEqual(cat['last_refresh'], '2026-11-12')
+            self.assertNotEqual([r for r in sr.load_catalog()['remote'] if r['id'] == 'gemini'][0]['free_tier'], 'NEW')   # shipped catalog untouched
+
+    def test_setup_flow_stores_updates_and_still_asks_the_questions(self):
+        ok = {'id': 'elevenlabs', 'field': 'free_tier', 'value': 'checked', 'source': 'https://elevenlabs.io/pricing', 'date': sr._today().isoformat()}
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / 'ns'
+            out = sr.apply_setup(root, found(['flite']), {}, None, [ok])
+            self.assertEqual(out['knowledge_updates_saved'], 1); self.assertEqual(out['state'], 'interview_needed')
+
+    def test_generic_block_is_identical_in_every_plugin_that_has_it(self):
+        def block(path):
+            t = Path(path).read_text()
+            return t[t.index('# ---- knowledge freshness'):t.index('# ---- end knowledge freshness ----')]
+        mine = block(ROOT / 'common' / 'speech_resources.py')
+        other = ROOT.parent / 'pagecast-director' / 'speech_resources.py'
+        if other.exists():
+            self.assertEqual(block(other), mine)
+        modlab = ROOT.parent / 'modlab' / 'resources.py'
+        if modlab.exists():
+            self.assertEqual(block(modlab), mine)
+
+
 class Loopback(unittest.TestCase):
     def test_only_real_loopback_http_addresses_are_ever_probed(self):
         for bad in ('http://127.0.0.1.evil.example:8000', 'https://127.0.0.1:8000', 'http://user:pw@127.0.0.1:8000', 'http://192.168.1.5:8000', 'ftp://127.0.0.1', 'http://localhost.evil.example'):
@@ -323,6 +399,7 @@ class Interview(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaisesRegex(ValueError, 'Ask the user which'):
                 sr.interview({}, Path(d) / 'ns', found(['flite']), ANSWERS)
+            self.assertIsNone(sr.load_profile(Path(d) / 'ns'))      # a refused interview saves nothing
 
     def test_a_route_that_was_not_offered_is_refused(self):
         with tempfile.TemporaryDirectory() as d:

@@ -673,13 +673,21 @@
     },
     {
       "name": "youtube_speech_setup",
-      "description": "First-use interview and speech check. Without answers: returns what speech resources this computer has (installed speech programs, speech servers that answer, Gemini set-up) and the questions to ask the user: what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have. With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing. Narration returns the options and these questions until a route has been chosen.",
+      "description": "First-use interview and speech check. Without answers: returns what speech resources this computer has (installed speech programs, speech servers that answer, Gemini set-up) and the questions to ask the user: what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have. With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing. Narration returns the options and these questions until a route has been chosen. Also reports whether the built-in speech knowledge looks out of date and offers to research it online (only if the user says yes).",
       "parameters": {
         "type": "object",
         "properties": {
           "answers": {
             "type": "object",
-            "description": "needs (text), quality (natural|plain-ok), allow_cloud (bool), allow_paid (bool), budget_usd (number), has (list of local_server, gemini_key, google_cloud_project, elevenlabs_key, inworld_key, host_speech_tool, nothing), voice_notes (text)."
+            "description": "needs (text), quality (natural|plain-ok), allow_cloud (bool), allow_paid (bool), budget_usd (number), has (list of local_server, gemini_key, google_cloud_project, elevenlabs_key, inworld_key, host_speech_tool, nothing), voice_notes (text), route (the id of the option the user picked)."
+          },
+          "knowledge_updates": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object"
+            },
+            "description": "Only after the user said yes to online research: facts you verified on primary pages. Each item: id (from the speech wiki tables), field, value, source (https page), date (the day you read it). Saved as dated overrides; the shipped catalog is unchanged."
           }
         },
         "required": [],

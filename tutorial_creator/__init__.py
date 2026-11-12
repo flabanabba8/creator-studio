@@ -62,7 +62,7 @@ def invoke(name, args, ctx=None, **kwargs):
             cfg = {k: ctx.get_config(k) for k in ('speech_http_url', 'higgs_url', 'gemini_project', 'host_tts_tool', 'host_tts_backend_id', 'piper_model')}
             cfg['gemini_api_key'] = speech_resources.read_secret('GEMINI_API_KEY')
             report = speech_resources.discover(cfg, secret_present=lambda n: bool(cfg['gemini_api_key']) if n == 'GEMINI_API_KEY' else False, hosted=('gemini',))
-            result = speech_resources.interview(cfg, root, report, args.get('answers'))
+            result = speech_resources.apply_setup(root, report, cfg, args.get('answers'), args.get('knowledge_updates'))
         elif name == 'tutorial_narrate':
             keys = ('higgs_url', 'higgs_model', 'higgs_voice', 'higgs_revision', 'higgs_reference_audio', 'higgs_reference_text','narration_backend','host_tts_tool','host_tts_backend_id','host_tts_arguments','host_tts_model','host_tts_voice','host_tts_audio_field','host_tts_credit','host_tts_retry_nonce','speech_http_url','speech_http_model','speech_http_voice','speech_http_revision','speech_http_reference_audio','speech_http_reference_text','speech_http_credit','speech_http_fields','gemini_voice','gemini_model','gemini_max_usd','gemini_project','gemini_route','gemini_api_key','system_tool','system_voice','piper_model','speech_route')
             settings = {key: value for key in keys if (value := ctx.get_config(key)) is not None}

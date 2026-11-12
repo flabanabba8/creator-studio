@@ -46,9 +46,9 @@ Inputs: `project_id` (required), `voice` (optional), `engine` (optional), `voice
 
 ## podcast_speech_setup
 
-First-use interview and speech check. Without answers: returns what speech resources this computer has (installed speech programs, speech servers that answer, Gemini set-up) and the questions to ask the user: what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have. With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing. Narration returns the options and these questions until a route has been chosen.
+First-use interview and speech check. Without answers: returns what speech resources this computer has (installed speech programs, speech servers that answer, Gemini set-up) and the questions to ask the user: what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have. With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing. Narration returns the options and these questions until a route has been chosen. Also reports whether the built-in speech knowledge looks out of date and offers to research it online (only if the user says yes).
 
-Inputs: `answers` (optional).
+Inputs: `answers` (optional), `knowledge_updates` (optional).
 
 ## podcast_assemble_project
 

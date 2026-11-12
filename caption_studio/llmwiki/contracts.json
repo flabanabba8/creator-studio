@@ -139,14 +139,7 @@
           },
           "recognizer": {
             "type": "object",
-            "description": "kind=command (argv with {audio}/{output}/{model}/{language}, output stdout/file), import (transcript_path), http (endpoint, form fields, allow_upload), or host (tool, arguments). API keys belong only in Hermes settings."
-          },
-          "decoder_argv": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Optional selected decoder argv producing mono 16kHz PCM WAV using {media}/{audio}; default uses installed FFmpeg."
+            "description": "kind=chosen (the route the user picked in captions_recognizer_setup), configured (the command or endpoint the OWNER set in the plugin settings), import (transcript_path of word-timestamp JSON) or host (tool, arguments: a Hermes speech tool, which Hermes itself approves). Commands, endpoints, keys and upload consent are never tool arguments."
           },
           "allow_profile_captions": {
             "type": "boolean"
@@ -314,14 +307,7 @@
           },
           "recognizer": {
             "type": "object",
-            "description": "kind=command (argv with {audio}/{output}/{model}/{language}, output stdout/file), import (transcript_path), http (endpoint, form fields, allow_upload), or host (tool, arguments). API keys belong only in Hermes settings."
-          },
-          "decoder_argv": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Optional selected decoder argv producing mono 16kHz PCM WAV using {media}/{audio}; default uses installed FFmpeg."
+            "description": "kind=chosen (the route the user picked in captions_recognizer_setup), configured (the command or endpoint the OWNER set in the plugin settings), import (transcript_path of word-timestamp JSON) or host (tool, arguments: a Hermes speech tool, which Hermes itself approves). Commands, endpoints, keys and upload consent are never tool arguments."
           },
           "allow_profile_media": {
             "type": "boolean"
@@ -404,14 +390,7 @@
           },
           "recognizer": {
             "type": "object",
-            "description": "kind=command (argv with {audio}/{output}/{model}/{language}, output stdout/file), import (transcript_path), http (endpoint, form fields, allow_upload), or host (tool, arguments). API keys belong only in Hermes settings."
-          },
-          "decoder_argv": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Optional selected decoder argv producing mono 16kHz PCM WAV using {media}/{audio}; default uses installed FFmpeg."
+            "description": "kind=chosen (the route the user picked in captions_recognizer_setup), configured (the command or endpoint the OWNER set in the plugin settings), import (transcript_path of word-timestamp JSON) or host (tool, arguments: a Hermes speech tool, which Hermes itself approves). Commands, endpoints, keys and upload consent are never tool arguments."
           },
           "caption_options": {
             "type": "object",

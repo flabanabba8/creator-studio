@@ -18,7 +18,7 @@ TOOLS['captions_recognizer_setup'] = ('First-use interview and recognizer check.
     'answers': {'type': 'object', 'description': 'languages (text), minutes (number), allow_upload (bool), priority (accurate timing|speed|lowest cost), speakers (bool), subscriptions (list: chatgpt-pro-business, claude-max-team, google-ai-pro, huggingface-pro, none), has (text), route (the id of the option the user picked).'}, 'knowledge_updates': {'type': 'array', 'maxItems': 100, 'items': {'type': 'object'}, 'description': 'Only after the user said yes to online research: facts you verified on primary pages. Each item: id (from the speech-recognition wiki tables), field, value, source (https page), date (the day you read it). Saved as dated overrides; the shipped catalog is unchanged.'}}, [])
 TOOLS.update({
  'captions_recognizer_options': ('Inspect available hardware/tools and recommend recognition paths from user language, privacy and API-access preferences. Loads no model, reads no credentials, installs nothing.', {'languages':{'type':'array','items':{'type':'string'}},'subscriptions':{'type':'array','items':{'type':'string'}},'offline':{'type':'boolean'}}, []),
- 'captions_analyse_audio': ('Compare selected audio/video with an SRT using the user-selected recognizer or imported word-timestamp JSON. Starts a local review job; no automatic edits. Local commands are trusted user-selected programs. Remote upload requires explicit consent. No default model/provider, downloads or fallback.', {'source_path':{'type':'string'},'media_path':{'type':'string'},'recognizer':{'type':'object','description':'kind=command (argv with {audio}/{output}/{model}/{language}, output stdout/file), import (transcript_path), http (endpoint, form fields, allow_upload), or host (tool, arguments). API keys belong only in Hermes settings.'},'decoder_argv':{'type':'array','items':{'type':'string'},'description':'Optional selected decoder argv producing mono 16kHz PCM WAV using {media}/{audio}; default uses installed FFmpeg.'},'allow_profile_captions':{'type':'boolean'},'allow_profile_media':{'type':'boolean'}}, ['source_path','media_path','recognizer']),
+ 'captions_analyse_audio': ('Compare selected audio/video with an SRT using the user-selected recognizer or imported word-timestamp JSON. Starts a local review job; no automatic edits. Local commands are trusted user-selected programs. Remote upload requires explicit consent. No default model/provider, downloads or fallback.', {'source_path':{'type':'string'},'media_path':{'type':'string'},'recognizer':{'type':'object','description':'kind=chosen (the route the user picked in captions_recognizer_setup), configured (the command or endpoint the OWNER set in the plugin settings), import (transcript_path of word-timestamp JSON) or host (tool, arguments: a Hermes speech tool, which Hermes itself approves). Commands, endpoints, keys and upload consent are never tool arguments.'},'allow_profile_captions':{'type':'boolean'},'allow_profile_media':{'type':'boolean'}}, ['source_path','media_path','recognizer']),
  'captions_audio_status': ('Read phase and counts for this profile audio review; does not repeat recognition.', {'job_id':JOB}, ['job_id']),
  'captions_audio_review': ('Page original/proposed cue times and words, discrepancy reasons and matched-word evidence. Recognition disagreements are possible errors, not proven corrections.', {'job_id':JOB,'offset':{'type':'integer','minimum':0},'limit':{'type':'integer','minimum':1,'maximum':100},'flagged_only':{'type':'boolean'}}, ['job_id']),
  'captions_audio_preview': ('Prepare a bounded audio excerpt around original or proposed cue timing. Never plays host speakers/microphone. By default returns a local clip path; Desktop may request a data URL.', {'job_id':JOB,'cue_id':{'type':'integer','minimum':1},'timing':{'type':'string','enum':['suggested','original']},'include_data':{'type':'boolean'}}, ['job_id','cue_id']),
@@ -41,7 +41,6 @@ TOOLS['captions_for_latest'] = ('Caption what this suite just made without namin
     'kind': {'type': 'string', 'enum': ['any', 'video', 'podcast', 'tutorial']},
     'recognize': {'type': 'boolean', 'description': 'Run speech recognition on the media even if script captions exist (needs recognizer).'},
     'recognizer': TOOLS['captions_analyse_audio'][1]['recognizer'],
-    'decoder_argv': TOOLS['captions_analyse_audio'][1]['decoder_argv'],
     'caption_options': TOOLS['captions_generate'][1]['caption_options']}, [])
 
 
@@ -81,19 +80,61 @@ def latest_captions(args, ctx, **context):
     if not isinstance(recognizer, dict):
         raise ValueError(('This item has no script captions' if not script else 'recognize=true needs a recognizer') + '. Call captions_recognizer_options, choose a recognizer, then call this again with recognizer set.')
     job = json.loads(invoke('captions_generate', {'media_path': item['media_path'], 'recognizer': recognizer, 'allow_profile_media': True,
-                                                  **{k: args[k] for k in ('decoder_argv', 'caption_options') if k in args}}, ctx, **context))
+                                                  **{k: args[k] for k in ('caption_options',) if k in args}}, ctx, **context))
     if 'error' in job:
         raise ValueError(job['error'])
     return {'found': item, 'recognition_job': job, 'next': 'Review with captions_audio_review, then captions_audio_export (decisions=[] saves an unreviewed draft). The caption files appear in that export result.'}
 
 
-def _asr_report():
+OWNER_KEYS = ('asr_provider', 'asr_python', 'asr_command', 'asr_command_output', 'asr_model', 'asr_language', 'asr_endpoint', 'asr_fields', 'asr_auth_header', 'asr_auth_prefix', 'asr_allow_upload', 'asr_decoder_command', 'asr_server_url')
+
+
+def owner_settings(ctx):
+    """Plugin settings only the owner can set. The model can never supply a command, endpoint, key, auth header, upload consent or decoder."""
+    get = getattr(ctx, 'get_config', None)
+    out = {}
+    for key in OWNER_KEYS:
+        try:
+            value = get(key) if get else None
+        except Exception:
+            value = None
+        if value not in (None, ''): out[key] = value
+    return out
+
+
+def _json_setting(settings, key, kind):
+    value = settings.get(key)
+    if value in (None, ''): return None
+    if isinstance(value, str):
+        try: value = json.loads(value)
+        except ValueError: raise ValueError('The plugin setting %s must be JSON' % key) from None
+    if not isinstance(value, kind): raise ValueError('The plugin setting %s has the wrong shape' % key)
+    return value
+
+
+def configured_recognizer(settings):
+    """The recognizer the OWNER configured: a trusted command or an HTTP endpoint with its auth, from plugin settings only."""
+    argv = _json_setting(settings, 'asr_command', list)
+    if argv:
+        return {'kind': 'command', 'argv': argv, 'model': settings.get('asr_model', ''), 'language': settings.get('asr_language', 'en'), 'output': settings.get('asr_command_output', 'stdout')}
+    endpoint = settings.get('asr_endpoint')
+    if endpoint:
+        rec = {'kind': 'http', 'endpoint': endpoint, 'language': settings.get('asr_language', 'en'), 'fields': _json_setting(settings, 'asr_fields', dict) or {},
+               'allow_upload': str(settings.get('asr_allow_upload', 'false')).lower() == 'true', 'use_api_key': True}
+        if settings.get('asr_auth_header'): rec['auth_header'] = settings['asr_auth_header']
+        if 'asr_auth_prefix' in settings: rec['auth_prefix'] = settings['asr_auth_prefix']
+        return rec
+    raise ValueError('No recognizer is configured. The owner sets asr_command (a JSON array of arguments) or asr_endpoint in the plugin settings; the model cannot choose one.')
+
+
+def _asr_report(ctx=None):
     from .recognizers import local_speech_resources
+    settings = owner_settings(ctx)
     try:
-        commands = local_speech_resources().get('ready_local_commands', [])
+        commands = local_speech_resources(extra_pythons=[settings.get('asr_python')]).get('ready_local_commands', [])
     except Exception:
         commands = []
-    return A.discover({}, local_commands=commands)
+    return A.discover(settings, local_commands=commands)
 
 
 def invoke(name, args, ctx=None, **context):
@@ -103,17 +144,32 @@ def invoke(name, args, ctx=None, **context):
         if name == 'captions_recognizer_options': return json.dumps(options(**args))
         if name == 'captions_recognizer_setup':
             root=plugin_data_dir(STORAGE_NAMESPACE)
-            return json.dumps(A.apply_setup(root,_asr_report(),{},args.get('answers'),args.get('knowledge_updates')))
-        if name in ('captions_analyse_audio','captions_generate') and isinstance(args.get('recognizer'),dict) and args['recognizer'].get('kind')!='import':
-            root=plugin_data_dir(STORAGE_NAMESPACE);profile=A.load_profile(root)
-            if profile is None or (args['recognizer'].get('kind')=='chosen' and not profile.get('route')):
-                return json.dumps({**A.apply_setup(root,_asr_report(),{}),'next':'Do not pick a recognizer for the user. Run the interview first (captions_recognizer_setup), then repeat this call.'})
-            if args['recognizer'].get('kind')=='chosen':
-                report=_asr_report();route=A.chosen(report,profile)
-                if route is None: raise ValueError('The recognizer the user chose (%s) is not available now. Ask them to choose again (captions_recognizer_setup). %s'%(profile['route'],report['advice']))
-                args=dict(args);args['recognizer']=A.recognizer_for(route,A.apply_profile({},profile))
-            elif profile and not profile['allow_upload'] and args['recognizer'].get('kind')=='http' and not args['recognizer'].get('endpoint','').startswith(('http://127.0.0.1','http://localhost','http://[::1]')):
-                raise ValueError('You said audio must not be uploaded, so this online recognizer will not be used. Change your answer with captions_recognizer_setup if that is no longer true.')
+            return json.dumps(A.apply_setup(root,_asr_report(ctx),owner_settings(ctx),args.get('answers'),args.get('knowledge_updates')))
+        if name in ('captions_analyse_audio','captions_generate'):
+            if args.get('decoder_argv') is not None: raise ValueError('A decoder command is a plugin setting (asr_decoder_command), not a tool argument')
+            rec=args.get('recognizer')
+            if not isinstance(rec,dict): raise ValueError('Choose a recognizer: kind chosen, configured, import or host')
+            kind=rec.get('kind')
+            if kind not in ('chosen','configured','import','host'):
+                raise ValueError('The model may use recognizer kind chosen, configured, import or host. Commands and endpoints (kind command or http) are plugin settings the owner sets, never tool arguments.')
+            settings=owner_settings(ctx)
+            if kind!='import':
+                root=plugin_data_dir(STORAGE_NAMESPACE);profile=A.load_profile(root)
+                if profile is None or (kind=='chosen' and not profile.get('route')):
+                    return json.dumps({**A.apply_setup(root,_asr_report(ctx),settings),'next':'Do not pick a recognizer for the user. Run the interview first (captions_recognizer_setup), then repeat this call.'})
+                args=dict(args)
+                if kind=='chosen':
+                    report=_asr_report(ctx);route=A.chosen(report,profile)
+                    if route is None: raise ValueError('The recognizer the user chose (%s) is not available now. Ask them to choose again (captions_recognizer_setup). %s'%(profile['route'],report['advice']))
+                    args['recognizer']=A.recognizer_for(route,A.apply_profile(settings,profile))
+                elif kind=='configured':
+                    args['recognizer']=configured_recognizer(settings)
+                    if not profile['allow_upload'] and args['recognizer']['kind']=='http' and not args['recognizer']['endpoint'].startswith(('http://127.0.0.1','http://localhost','http://[::1]')):
+                        raise ValueError('You said audio must not be uploaded, so this online recognizer will not be used. Change your answer with captions_recognizer_setup if that is no longer true.')
+            else:
+                args=dict(args);args['recognizer']={'kind':'import','transcript_path':rec.get('transcript_path',''),'language':rec.get('language','')}
+            if settings.get('asr_decoder_command'):
+                args['decoder_argv']=_json_setting(settings,'asr_decoder_command',list)
         if name in ('captions_analyse_audio','captions_generate'):
             secret=None
             if args.get('recognizer',{}).get('use_api_key'):

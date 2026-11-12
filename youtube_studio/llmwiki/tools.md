@@ -6,7 +6,7 @@ Registered source schemas; registration does not establish live backend readines
 
 Create an actual chart, table or flowchart PNG from explicit data with labeled provenance. No model request or invented research data.
 
-Inputs: `kind` (required), `title` (required), `data` (required), `provenance` (required), `project_id` (optional), `section_index` (optional; with project_id the graphic becomes that section's picture).
+Inputs: `kind` (required), `title` (required), `data` (required), `provenance` (required), `project_id` (optional), `section_index` (optional).
 
 ## youtube_generate_image
 
@@ -22,9 +22,9 @@ Inputs: `topic` (required), `audience` (optional), `resources` (optional), `fact
 
 ## youtube_research_fetch
 
-Read an explicitly selected public source with an installed Camoufox runtime and fresh anonymous profile. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.
+Read a public source page in full with an installed Camoufox runtime and fresh anonymous profile; The Camoufox runtime is the one the owner set in the plugin settings (camoufox_python); the model cannot name one. Use this for each source instead of search snippets. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.
 
-Inputs: `project_id` (required), `url` (required), `python_executable` (required), `browser_executable` (required), `timeout_seconds` (optional).
+Inputs: `project_id` (required), `url` (required), `timeout_seconds` (optional).
 
 ## youtube_source_add
 
@@ -48,7 +48,7 @@ Inputs: `project_id` (required), `sections` (required).
 
 Attach an actual generated/selected image or measured speech WAV to a script section. Inspect generated images directly in the main session; never attach text pretending to be an image.
 
-Inputs: `project_id` (required), `source_path` (required), `kind` (required), `section_index` (optional), `review_note` (optional), `allow_profile_media` (optional).
+Inputs: `project_id` (required), `source_path` (required), `kind` (required), `section_index` (optional), `review_note` (optional), `allow_profile_media` (optional), `import_from_project` (optional).
 
 ## youtube_narrate
 
@@ -70,15 +70,15 @@ Inputs: `project_id` (required), `image_tool_available` (required).
 
 ## youtube_project_status
 
-Read actual project sources/script/materials and production state; creates no model request. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.
+Read actual project sources/script/materials and production state; creates no model request. Call it with no project_id to list the existing projects (ID, topic, phase) so earlier work can be found and continued. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.
 
-Inputs: `project_id` (required), `offset` (optional), `limit` (optional).
+Inputs: `project_id` (optional), `offset` (optional), `limit` (optional).
 
 ## youtube_make_slides
 
-Make 1-40 plain 1920x1080 slide images from a text outline: title, up to six bullets, an optional picture and speaker notes, in a light, dark or kids theme. CPU-only and local. Returns image paths for youtube_render_slides; check fit, legibility and picture rights yourself.
+Make 1-40 plain 1920x1080 slide images from a text outline: title, up to six bullets, an optional picture and speaker notes, in a light, dark or kids theme. CPU-only and local. With project_id the slides are attached as the pictures of the lesson sections for you (this is how every text section gets its picture; no image-generation tool is needed). Returns image paths; check fit, legibility and picture rights yourself.
 
-Inputs: `slides` (required), `theme` (optional), `allow_profile_media` (optional), `project_id` (optional), `section_indexes` (optional; with project_id each slide becomes that section's picture).
+Inputs: `slides` (required), `theme` (optional), `allow_profile_media` (optional), `project_id` (optional), `section_indexes` (optional).
 
 ## youtube_render_slides
 
@@ -121,7 +121,6 @@ Inputs: `image_path` (required), `audio_path` (required), `audio_start` (optiona
 Check supplied chapter and caption times and format a contiguous chapter block and WebVTT/SRT captions; no media or platform access.
 
 Inputs: `duration` (required), `chapters` (required), `captions` (required).
-
 
 ## Finding earlier projects
 

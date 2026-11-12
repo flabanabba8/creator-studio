@@ -109,7 +109,7 @@
     },
     {
       "name": "youtube_research_fetch",
-      "description": "Read a public source page in full with an installed Camoufox runtime and fresh anonymous profile; python_executable and browser_executable are optional (an installed runtime is discovered automatically, see research_tools from start_topic). Use this for each source instead of search snippets. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.",
+      "description": "Read a public source page in full with an installed Camoufox runtime and fresh anonymous profile; The Camoufox runtime is the one the owner set in the plugin settings (camoufox_python); the model cannot name one. Use this for each source instead of search snippets. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -117,12 +117,6 @@
             "type": "string"
           },
           "url": {
-            "type": "string"
-          },
-          "python_executable": {
-            "type": "string"
-          },
-          "browser_executable": {
             "type": "string"
           },
           "timeout_seconds": {
@@ -509,7 +503,7 @@
     },
     {
       "name": "youtube_stitch_segments",
-      "description": "Join 1\u201360 selected video segment IDs and encode one explicitly selected original audio track once. Segment audio, subtitles and chapters are omitted; verify final timing.",
+      "description": "Join 1–60 selected video segment IDs and encode one explicitly selected original audio track once. Segment audio, subtitles and chapters are omitted; verify final timing.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -547,7 +541,7 @@
     },
     {
       "name": "youtube_render_clips",
-      "description": "Render 1\u20136 selected local video clips into a 1\u2013120 second sequence with narration and optional captions, using one CPU encoder thread. Source clip audio is omitted. No upload.",
+      "description": "Render 1–6 selected local video clips into a 1–120 second sequence with narration and optional captions, using one CPU encoder thread. Source clip audio is omitted. No upload.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -608,7 +602,7 @@
     },
     {
       "name": "youtube_render_still",
-      "description": "Render a local 1\u2013120 second still-image video from explicitly selected trusted image and narration, with optional captions, using one CPU encoder thread. No upload.",
+      "description": "Render a local 1–120 second still-image video from explicitly selected trusted image and narration, with optional captions, using one CPU encoder thread. No upload.",
       "parameters": {
         "type": "object",
         "properties": {

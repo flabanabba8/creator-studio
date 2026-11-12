@@ -28,7 +28,7 @@
     },
     {
       "name": "podcast_research_fetch",
-      "description": "Read a public page in full with an already-installed Camoufox runtime (python_executable and browser_executable are optional: when left out, the standard install in the home folder is used; nothing is downloaded). Saves the whole page text as a complete source in one step, so you do not retype it. Fresh anonymous profile. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.",
+      "description": "Read a public page in full with an already-installed Camoufox runtime (the Camoufox runtime is the one the owner set in the plugin settings, camoufox_python; nothing is downloaded). Saves the whole page text as a complete source in one step, so you do not retype it. Fresh anonymous profile. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -36,12 +36,6 @@
             "type": "string"
           },
           "url": {
-            "type": "string"
-          },
-          "python_executable": {
-            "type": "string"
-          },
-          "browser_executable": {
             "type": "string"
           },
           "timeout_seconds": {
@@ -416,7 +410,7 @@
     },
     {
       "name": "podcast_mix_timeline",
-      "description": "Mix 1\u201320 explicitly selected music beds over non-overlapping narration intervals into a private WAV. Times are milliseconds; optional explicit fades, no playback or automatic ducking.",
+      "description": "Mix 1–20 explicitly selected music beds over non-overlapping narration intervals into a private WAV. Times are milliseconds; optional explicit fades, no playback or automatic ducking.",
       "parameters": {
         "type": "object",
         "properties": {

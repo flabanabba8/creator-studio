@@ -10,9 +10,9 @@ Inputs: `topic` (required), `audience` (optional), `resources` (optional), `fact
 
 ## podcast_research_fetch
 
-Read a public page in full with an already-installed Camoufox runtime (python_executable and browser_executable are optional: when left out, the standard install in the home folder is used; nothing is downloaded). Saves the whole page text as a complete source in one step, so you do not retype it. Fresh anonymous profile. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.
+Read a public page in full with an already-installed Camoufox runtime (the Camoufox runtime is the one the owner set in the plugin settings, camoufox_python; nothing is downloaded). Saves the whole page text as a complete source in one step, so you do not retype it. Fresh anonymous profile. No model, credential borrowing, download or fallback. Saves untrusted source text for bounded reading.
 
-Inputs: `project_id` (required), `url` (required), `python_executable` (optional), `browser_executable` (optional), `timeout_seconds` (optional).
+Inputs: `project_id` (required), `url` (required), `timeout_seconds` (optional).
 
 ## podcast_source_add
 
@@ -36,7 +36,7 @@ Inputs: `project_id` (required), `sections` (required).
 
 Attach an actual generated/selected image or measured speech WAV to a script section. Inspect generated images directly in the main session; never attach text pretending to be an image.
 
-Inputs: `project_id` (required), `source_path` (required), `kind` (required), `section_index` (optional), `review_note` (optional), `allow_profile_media` (optional).
+Inputs: `project_id` (required), `source_path` (required), `kind` (required), `section_index` (optional), `review_note` (optional), `allow_profile_media` (optional), `import_from_project` (optional).
 
 ## podcast_narrate
 
@@ -64,9 +64,9 @@ Inputs: `project_id` (required), `output_dir` (optional).
 
 ## podcast_project_status
 
-Read actual project sources/script/materials and production state; creates no model request. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.
+Read actual project sources/script/materials and production state; creates no model request. Call it with no project_id to list the existing projects (ID, topic, phase) so earlier work can be found and continued. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain "carry on", which never redoes finished steps or pays for recorded speech twice.
 
-Inputs: `project_id` (required), `offset` (optional), `limit` (optional).
+Inputs: `project_id` (optional), `offset` (optional), `limit` (optional).
 
 ## podcast_load_episode
 
@@ -102,13 +102,13 @@ Inputs: `assignments` (required), `passages` (required), `total` (required), `ex
 
 Mix 1–20 explicitly selected music beds over non-overlapping narration intervals into a private WAV. Times are milliseconds; optional explicit fades, no playback or automatic ducking.
 
-Inputs: `narration_path` (required), `beds` (required), `voice_db` (optional), `loudness_lufs` (optional), `allow_profile_media` (optional).
+Inputs: `narration_path` (required), `beds` (required), `voice_db` (optional), `loudness_lufs` (optional), `allow_profile_media` (optional), `import_from_project` (optional).
 
 ## podcast_mix
 
 Mix explicitly selected narration and music files into a private WAV without audio playback. Music loops; no automatic ducking. Check rights and listen before sharing.
 
-Inputs: `narration_path` (required), `music_path` (required), `music_db` (optional), `voice_db` (optional), `loudness_lufs` (optional), `allow_profile_media` (optional).
+Inputs: `narration_path` (required), `music_path` (required), `music_db` (optional), `voice_db` (optional), `loudness_lufs` (optional), `allow_profile_media` (optional), `import_from_project` (optional).
 
 ## podcast_caption_cues
 
@@ -139,7 +139,6 @@ Inputs: `segments` (required), `review` (required).
 Check a supplied full editorial review covers the current exact segments. Review is self-attested.
 
 Inputs: `segments` (required), `review` (required).
-
 
 ## Finding earlier projects
 

@@ -337,7 +337,8 @@ class Loopback(unittest.TestCase):
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
             url = 'http://127.0.0.1:%d' % srv.server_address[1]
-            self.assertEqual(sr.find_servers([url]), [{'url': url, 'models': ['fixture-voice']}])
+            with mock.patch.object(sr, 'LOOPBACK_PORTS', ()):   # hermetic: a speech server running on this machine must not change the result
+                self.assertEqual(sr.find_servers([url]), [{'url': url, 'models': ['fixture-voice']}])
         finally:
             srv.shutdown()
 
@@ -444,6 +445,14 @@ class Interview(unittest.TestCase):
         profile = {**ANSWERS, 'quality': 'natural', 'allow_cloud': True, 'has': ['local_server', 'gemini_key']}
         notes = ' '.join(sr.gaps(found(['flite']), profile))
         self.assertIn('robotic', notes); self.assertIn('speech server', notes); self.assertIn('gemini key', notes)
+
+class WrongKindOfServer(unittest.TestCase):
+    def test_a_recognition_server_is_not_offered_as_a_voice(self):
+        from unittest import mock
+        servers = lambda urls, probe=True: [{'url': 'http://127.0.0.1:8000', 'models': ['bosonai/higgs-tts-3-4b']}, {'url': 'http://127.0.0.1:8080', 'models': ['Systran/faster-whisper-small.en']}]
+        with mock.patch.object(sr, 'find_servers', servers):
+            ids = [b["id"] for b in sr.discover({}, secret_present=lambda n: False, which=lambda n: None, probe=True)['backends']]
+        self.assertIn('server:http://127.0.0.1:8000', ids); self.assertNotIn('server:http://127.0.0.1:8080', ids)
 
 
 if __name__ == '__main__':

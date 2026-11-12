@@ -78,8 +78,24 @@ def description(blurb, duration, chapters, sources, footer=''):
             'youtube_chapter_list_note': ('' if len(chapters) >= 3 and all(b['start'] - a['start'] >= 10 for a, b in zip(chapters, chapters[1:])) else 'YouTube itself only shows a chapter list in the player when there are at least three chapters of ten seconds or more; shorter ones stay readable in the description.'), 'notice': 'Plain text assembled from supplied values. Chapter times and sources are not verified, and platform limits and rules should be checked on the platform before posting. Nothing was posted.'}
 
 
+def camoufox_settings(ctx):
+    """Plugin settings only the owner can set: the Camoufox install used for page research. The model cannot supply them."""
+    get = getattr(ctx, 'get_config', None)
+    out = {}
+    for key in ('camoufox_python', 'camoufox_browser'):
+        try:
+            value = get(key) if get else None
+        except Exception:
+            value = None
+        if value: out[key] = value
+    return out
+
+
+
 def invoke(name, args, ctx=None, **context):
     try:
+        from .media_project import MediaProject as _MP
+        _MP.settings = camoufox_settings(ctx)
         if name=='youtube_make_visual':
             from plugins.plugin_storage import plugin_data_dir
             from .visuals import make_visual

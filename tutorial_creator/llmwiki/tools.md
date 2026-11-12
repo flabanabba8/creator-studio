@@ -67,4 +67,3 @@ Inputs: `answers` (optional).
 Perform ONE computer-use action through Hermes's native tool, with its approvals unchanged, while a take is recording. Mark the attempt on the media timeline and return a fresh capture for verification. A tool acknowledgment is not proof the intended UI result occurred. Use only for the user-authorized tutorial task and the selected app.
 
 Inputs: `job_id` (required), `label` (required), `action` (required), `observe` (required).
-

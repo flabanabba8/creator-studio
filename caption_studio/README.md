@@ -121,8 +121,8 @@ Plain text and segment-only results cannot supply word timing and are refused.
 ## Audio and bounds
 
 Compatible mono 16 kHz 16-bit PCM WAV works with the standard library. Other media
-uses an installed FFmpeg by default; `decoder_argv` can select another tool that
-writes the same WAV contract with `{media}`/`{audio}`. Nothing is installed silently.
+uses an installed FFmpeg by default; the owner can select another tool with the
+`asr_decoder_command` setting (it must write the same WAV contract with `{media}`/`{audio}`); the model cannot choose it. Nothing is installed silently.
 Listening excerpts use standard-library WAV slicing, not a required media player.
 No host speakers, microphone, device defaults or unrelated applications are used.
 

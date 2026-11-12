@@ -5,6 +5,7 @@ which service keys exist (yes/no, never the value), the hardware, and the plugin
 user which one to use. The plugin never picks a recognizer for the user. Its knowledge is checked for staleness and the user may approve online
 research to refresh it (freshness block below)."""
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -174,6 +175,13 @@ def apply_updates(rows, updates):
     return rows
 # ---- end knowledge freshness ----
 
+def minimal_env(extra=None):
+    """Environment for every subprocess this module starts: no provider keys or other secrets from the host. PATH, HOME and LANG only."""
+    env = {'PATH': os.environ.get('PATH', ''), 'HOME': os.path.expanduser('~'), 'LANG': 'C'}
+    env.update(extra or {})
+    return env
+
+
 def hardware(run=subprocess.run, platform=None, which=shutil.which, read_text=None):
     """Numbers only about THIS computer: operating system, CPU threads, RAM, GPUs with memory, Apple Silicon.
     No hostname, serial number or account detail. Reads local files and runs local programs; sends nothing."""
@@ -187,7 +195,7 @@ def hardware(run=subprocess.run, platform=None, which=shutil.which, read_text=No
 
     def out(argv, timeout=15):
         try:
-            r = run(argv, capture_output=True, text=True, timeout=timeout)
+            r = run(argv, capture_output=True, text=True, timeout=timeout, env=minimal_env())
             return r.stdout if r.returncode == 0 else ''
         except Exception:
             return ''
@@ -269,18 +277,22 @@ def asr_freshness(root, today=None):
 
 
 # ---------------------------------------------------------------- discovery
-KEYS = {'groq': 'GROQ_API_KEY', 'openai': 'OPENAI_API_KEY', 'gemini': 'GEMINI_API_KEY', 'deepgram': 'DEEPGRAM_API_KEY', 'assemblyai': 'ASSEMBLYAI_API_KEY', 'elevenlabs-scribe': 'ELEVENLABS_API_KEY'}
-# Remote services this plugin can call today through its HTTP recognizer (OpenAI-style multipart transcription with word timestamps).
+# Remote services this plugin can call through its HTTP recognizer (OpenAI-style multipart transcription with word timestamps).
+# The key is the one declared plugin setting asr_api_key (secret CAPTION_STUDIO_ASR_KEY); the owner says which provider it belongs to in asr_provider.
 CALLABLE_REMOTE = {'groq': {'endpoint': 'https://api.groq.com/openai/v1/audio/transcriptions', 'model': 'whisper-large-v3-turbo'}}
+DECLARED_SECRETS = ('CAPTION_STUDIO_ASR_KEY', 'CAPTION_REPAIR_ASR_KEY')
 PATH_TOOLS = ('whisper-cli', 'whisper', 'faster-whisper', 'whisper-server', 'sherpa-onnx-offline', 'moonshine')
 
 
 def read_secret(name):
+    """One of THIS plugin's declared secrets through Hermes's profile scope; '' when absent or undeclared. Never reads the environment or another service's key."""
+    if name not in DECLARED_SECRETS:
+        return ''
     try:
         from agent.secret_scope import get_secret
         value = get_secret(name)
     except Exception:
-        value = os.environ.get(name)
+        return ''
     return value.strip() if isinstance(value, str) else ''
 
 
@@ -298,12 +310,34 @@ def find_transcription_servers(extra_urls=(), probe=True):
     return found
 
 
+def _owner_command(settings):
+    """The recognizer command the OWNER put in the plugin settings: a JSON array of strings, or nothing."""
+    value = (settings or {}).get('asr_command')
+    if isinstance(value, str) and value.strip():
+        try: value = json.loads(value)
+        except ValueError: return None
+    if isinstance(value, list) and value and len(value) <= 80 and all(isinstance(x, str) and 0 < len(x) <= 4000 for x in value): return value
+    return None
+
+
+TTS_MODEL = re.compile(r'(?i)tts|text-to-speech|kokoro|piper|orpheus|higgs|xtts|bark|vits|voxcpm|cosyvoice|f5-|chatterbox|zonos|outetts|maya1|soprano|dia-')
+
+
+def _only_speech_synthesis(models):
+    """A server whose every model is a speech SYNTHESIS model cannot transcribe, so it is not offered as a recognizer."""
+    return bool(models) and all(isinstance(m, str) and TTS_MODEL.search(m) for m in models)
+
+
 def discover(settings=None, secret_present=None, which=shutil.which, probe=True, local_commands=()):
     """Every recognizer route this computer can use or could use with a small step. Nothing is ranked or chosen."""
     s = settings or {}
-    has = secret_present or (lambda name: bool(read_secret(name)))
+    has = secret_present or (lambda name: bool(read_secret(name)))   # only this plugin's declared secrets
     routes = [{'id': 'import', 'kind': 'import', 'ready': True, 'free': True, 'local': True, 'detail': 'import word-timestamp JSON from a recognizer you already ran yourself; nothing is uploaded or run here'}]
-    for server in find_transcription_servers([s.get('asr_server_url', '')], probe):
+    argv = _owner_command(s)
+    if argv:
+        routes.append({'id': 'configured:command', 'kind': 'command', 'ready': True, 'free': True, 'local': True, 'detail': 'the local recognizer command you set in the plugin settings (asr_command); it runs on this computer with a clean environment',
+                       'recognizer': {'kind': 'command', 'argv': argv, 'model': str(s.get('asr_model', '')), 'language': str(s.get('asr_language', 'en')), 'output': str(s.get('asr_command_output', 'stdout'))}})
+    for server in [x for x in find_transcription_servers([s.get('asr_server_url', '')], probe) if not _only_speech_synthesis(x.get('models'))]:
         routes.append({'id': 'server:' + server['url'], 'kind': 'server', 'ready': True, 'free': True, 'local': True, 'models': server['models'], 'detail': 'a server on this computer that answered; used through its OpenAI-style /v1/audio/transcriptions if it has one'})
     for cmd in local_commands:
         routes.append({'id': 'command:%s' % cmd['recognizer'].get('model', 'transformers'), 'kind': 'command', 'ready': True, 'free': True, 'local': True, 'recognizer': cmd['recognizer'], 'detail': 'a local Whisper model already cached on this computer, run by the bundled adapter'})
@@ -311,13 +345,14 @@ def discover(settings=None, secret_present=None, which=shutil.which, probe=True,
         path = which(tool)
         if path:
             routes.append({'id': 'program:' + tool, 'kind': 'program', 'tool': tool, 'ready': False, 'free': True, 'local': True, 'detail': 'installed (%s) but it needs a small wrapper that prints word-timestamp JSON before this plugin can drive it; the setup tool explains how' % tool})
-    for sid, env in KEYS.items():
-        if has(env):
-            callable_ = sid in CALLABLE_REMOTE
-            routes.append({'id': 'remote:' + sid, 'kind': 'remote', 'service': sid, 'ready': callable_, 'free': False, 'local': False,
-                           'detail': ('an online service with your key; audio is uploaded to it' if callable_ else 'a key for this online service exists, but this plugin cannot call it directly yet (own request format); transcribe there and use the import route')})
-    if has('CAPTION_STUDIO_ASR_KEY') or has('CAPTION_REPAIR_ASR_KEY'):
-        routes.append({'id': 'remote:configured-endpoint', 'kind': 'remote', 'service': 'configured', 'ready': True, 'free': None, 'local': False, 'detail': 'the speech endpoint and key you configured for this plugin (asr_api_key); audio is uploaded to it'})
+    key_present = has('CAPTION_STUDIO_ASR_KEY') or has('CAPTION_REPAIR_ASR_KEY')
+    provider = str(s.get('asr_provider', '') or '').strip().lower()
+    if key_present and provider in CALLABLE_REMOTE:
+        routes.append({'id': 'remote:' + provider, 'kind': 'remote', 'service': provider, 'ready': True, 'free': False, 'local': False,
+                       'detail': 'an online service with the key you set in the plugin settings (asr_api_key, provider %s); audio is uploaded to it' % provider})
+    elif key_present:
+        routes.append({'id': 'remote:configured-endpoint', 'kind': 'remote', 'service': 'configured', 'ready': True, 'free': None, 'local': False,
+                       'detail': 'the speech endpoint and key you configured for this plugin (asr_api_key); audio is uploaded to it. Set asr_provider to groq if the key is a Groq key.'})
     return {'routes': routes, 'advice': advice(routes)}
 
 
@@ -325,7 +360,7 @@ def advice(routes):
     ready = [r for r in routes if r['ready']]
     if len(ready) <= 1:
         return ('Only the import route is available right now. To transcribe here, start a local OpenAI-style speech server (Speaches or whisper.cpp), cache a Whisper model, '
-                'or set an API key for Groq/OpenAI in the plugin settings. Nothing was uploaded or started.')
+                'or put an API key in the plugin setting asr_api_key (and set asr_provider to groq for a Groq key). Nothing was uploaded or started.')
     return 'Found %d usable route(s): %s. The user chooses which one to use.' % (len(ready), ', '.join(r['id'] for r in ready))
 
 
@@ -455,7 +490,7 @@ def save_profile(root, answers, route_ids=None):
             raise ValueError('route must be the id of one of the options you were shown')
         if route_ids is not None and route not in route_ids:
             raise ValueError('route "%s" is not one of the available options: %s' % (route, ', '.join(sorted(route_ids)) or 'none'))
-        if route and not out['allow_upload'] and not (route == 'import' or route.startswith('server:') or route.startswith('command:')):
+        if route and not out['allow_upload'] and not (route == 'import' or route.startswith('server:') or route.startswith('command:') or route == 'configured:command'):
             raise ValueError('You said audio must not be uploaded, so choose a route that stays on this computer')
     out['route'] = route or None
     path = profile_path(root)

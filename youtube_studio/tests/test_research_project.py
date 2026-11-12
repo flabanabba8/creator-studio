@@ -84,19 +84,34 @@ class ResearchProjectTests(unittest.TestCase):
         made=make_slides(self.root/'data',[{'title':'One','bullets':['a']},{'title':'Two','bullets':['b']}],theme='light')
         for i,x in enumerate(made['slides']):app.add_asset(p,x['path'],'image',i,'drawn')
         self.assertTrue(all(s['image_id']for s in app.load(p)[1]['sections']))
-    def test_research_runtime_is_discovered_and_fetch_needs_no_arguments_when_none_exists(self):
+    def test_research_runtime_comes_only_from_the_owners_settings_and_never_from_a_search_or_a_tool_argument(self):
         from cs_t.video_project_fixture import discovery
         from unittest import mock
         home=self.root/'home';(home/'.cache/camoufox').mkdir(parents=True);b=home/'.cache/camoufox/camoufox-bin';b.write_text('x');b.chmod(0o755)
         env=home/'work/camoufox/bin';env.mkdir(parents=True);(env.parent/'pyvenv.cfg').write_text('x');py=env/'python';py.write_text('#!/bin/sh\necho True\n');py.chmod(0o755)
         with mock.patch.object(discovery.Path,'home',return_value=home),mock.patch.dict('os.environ',{'PATH':'/nonexistent'},clear=True):
-            found=discovery.camoufox_runtime()
+            self.assertIsNone(discovery.camoufox_runtime())                                    # a venv in the home folder is NOT found and NOT run
+            self.assertIsNone(discovery.camoufox_runtime({}))
+            found=discovery.camoufox_runtime({'camoufox_python':str(py)})
         self.assertEqual((found['python_executable'],found['browser_executable']),(str(py),str(b)))
         app=MediaProject(self.root/'data','video');p=app.create('Topic')['project_id']
+        with self.assertRaises(TypeError):app.fetch(p,'https://example.org/',python_executable=str(py))       # no longer a tool argument
+        with self.assertRaises(TypeError):app.fetch(p,'https://example.org/',browser_executable=str(b))
         with mock.patch.object(discovery.Path,'home',return_value=self.root/'empty'),mock.patch.dict('os.environ',{'PATH':'/nonexistent'},clear=True):
             (self.root/'empty').mkdir()
+            app.settings={}
             self.assertIsNone(app.create('Another')['research_tools']['camoufox'])
-            with self.assertRaisesRegex(ValueError,'No installed Camoufox runtime'):app.fetch(p,'https://example.org/')
+            with self.assertRaisesRegex(ValueError,'No Camoufox runtime is configured'):app.fetch(p,'https://example.org/')
+    def test_the_probe_of_the_configured_python_runs_with_a_clean_environment(self):
+        from cs_t.video_project_fixture import discovery
+        from unittest import mock
+        seen={}
+        def fake(argv,**kw):
+            seen['env']=kw.get('env');return mock.Mock(returncode=0,stdout='True\n')
+        py=self.root/'py';py.write_text('x');py.chmod(0o755)
+        with mock.patch.dict('os.environ',{'OPENAI_API_KEY':'sk-x','PATH':'/usr/bin'}),mock.patch('subprocess.run',fake):
+            self.assertEqual(discovery.camoufox_pythons(str(py)),[str(py)])
+        self.assertNotIn('OPENAI_API_KEY',seen['env'])
     def test_speech_server_discovery_reports_a_request_shape_only_for_a_speech_route(self):
         import threading,http.server
         from cs_t.video_project_fixture import discovery

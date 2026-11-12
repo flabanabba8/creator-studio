@@ -2,6 +2,12 @@
 
 This file says what was checked on the bundle. Each part's live evidence (real Gemini runs, real recordings, real captions, demos) belongs to that part's own record: see `VERIFICATION.md` inside `youtube_studio/`, `podcast_studio/`, `caption_studio/` and `tutorial_creator/`. Nothing in those records was re-run live for the bundle, and the bundle adds no new claim about speech, picture or recognizer quality.
 
+## 0.4.1 - maintainer review (2026-11-12)
+
+Maintainer review. Executables, commands and endpoints (Camoufox python/browser, ASR command/endpoint/decoder, TTS server) are owner settings in plugin.yaml, no longer tool arguments the model can set. Every subprocess gets a minimal environment (PATH, HOME, LANG). Declared secrets (GEMINI_API_KEY, CAPTION_STUDIO_ASR_KEY, CAPTION_REPAIR_ASR_KEY) are read only through agent.secret_scope. Python-runtime discovery no longer walks the home folder. Non-loopback ASR endpoints refuse private hosts. Re-tested: 334 offline tests across the suite, all passing; plugin preflight reports no findings.
+
+Live test through Hermes 0.23.0 (2026-11-12, own profile, real local model and server): local speech discovery, a configured local recognizer (faster-whisper small.en through asr_command) chosen in the interview and run through captions_generate (two correct cues with word timing), and the model-facing refusals of executable, command and endpoint arguments. Found and fixed: a configured asr_command was not offered as a route; a TTS-only server was offered as a recognizer and the reverse. Not covered: hosted recognizers and Gemini speech (no key on the test machine).
+
 ## What was changed when the four plugins were combined
 
 - Each part's source was copied into its own sub-package. Tool names, schemas, hooks (none), approval behaviour and defaults are unchanged.

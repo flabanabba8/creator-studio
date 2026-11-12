@@ -212,9 +212,24 @@ TOOLS = {
 }
 
 
-def invoke(name, args):
+def camoufox_settings(ctx):
+    """Plugin settings only the owner can set: the Camoufox install used for page research. The model cannot supply them."""
+    get = getattr(ctx, 'get_config', None)
+    out = {}
+    for key in ('camoufox_python', 'camoufox_browser'):
+        try:
+            value = get(key) if get else None
+        except Exception:
+            value = None
+        if value: out[key] = value
+    return out
+
+
+
+def invoke(name, args, ctx=None):
     try:
         from .media_project import MediaProject, schemas
+        MediaProject.settings = camoufox_settings(ctx)
         project_tools=schemas('podcast')
         if name in project_tools:
             from plugins.plugin_storage import plugin_data_dir
@@ -237,7 +252,7 @@ def invoke(name, args):
 def register(ctx):
     from .media_project import schemas
     for tool_name,(description,properties,required,method) in schemas('podcast').items():
-        ctx.register_tool(name=tool_name,toolset='podcast_studio',schema={'name':tool_name,'description':description,'parameters':{'type':'object','properties':properties,'required':required,'additionalProperties':False}},handler=lambda args,_name=tool_name,**kw:invoke(_name,args))
+        ctx.register_tool(name=tool_name,toolset='podcast_studio',schema={'name':tool_name,'description':description,'parameters':{'type':'object','properties':properties,'required':required,'additionalProperties':False}},handler=lambda args,_name=tool_name,**kw:invoke(_name,args,ctx))
     ctx.register_skill('create-podcast', Path(__file__).parent / 'skills/create-podcast/SKILL.md', description='Develop a source-backed podcast with an editorial review before production.')
     for name, (description, properties, required) in TOOLS.items():
-        ctx.register_tool(name=name, toolset='podcast_studio', schema={'name': name, 'description': description, 'parameters': {'type': 'object', 'properties': properties, 'required': required, 'additionalProperties': False}}, handler=lambda args, _name=name, **kw: invoke(_name, args))
+        ctx.register_tool(name=name, toolset='podcast_studio', schema={'name': name, 'description': description, 'parameters': {'type': 'object', 'properties': properties, 'required': required, 'additionalProperties': False}}, handler=lambda args, _name=name, **kw: invoke(_name, args, ctx))

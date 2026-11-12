@@ -34,13 +34,14 @@ class DiscoveryTests(unittest.TestCase):
         self.fake_python('work/other/.venv','echo \'{"torch": false, "transformers": false, "faster_whisper": false}\'')
         self.fake_python('.hermes/hidden/.venv','echo \'{"torch": true, "transformers": true, "faster_whisper": true}\'')
         with mock.patch.dict(os.environ,{'PATH':'/nonexistent'},clear=True), mock.patch.object(rec.Path,'home',return_value=self.home):
-            found=rec.python_runtimes()
+            self.assertEqual(rec.python_runtimes(),[])                      # nothing in the home folder is searched for or run
+            found=rec.python_runtimes(extra=[str(good)])                   # only the interpreter the owner named
         self.assertEqual([r['python'] for r in found],[str(good)])
         self.assertTrue(found[0]['runs_transformers_adapter'])
     def test_options_reports_a_ready_local_command_and_never_runs_recognition(self):
         self.cache_model('openai/whisper-large-v3-turbo')
         self.fake_python('app/.venv','''if [ "$3" = "--probe" ]; then echo '{"torch": "2.0.0", "transformers": "4.57.3"}'; else echo '{"torch": true, "transformers": true, "faster_whisper": false}'; fi''')
-        with mock.patch.dict(os.environ,{'PATH':'/usr/bin:/bin'},clear=True), mock.patch.object(rec.Path,'home',return_value=self.home):
+        with mock.patch.dict(os.environ,{'PATH':str(self.home/'app/.venv/bin')+':/usr/bin:/bin'},clear=True), mock.patch.object(rec.Path,'home',return_value=self.home):
             result=rec.options()
         ready=result['local_speech_resources']['ready_local_commands']
         self.assertEqual(len(ready),1)

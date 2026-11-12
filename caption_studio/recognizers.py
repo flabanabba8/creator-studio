@@ -40,23 +40,17 @@ def cached_speech_models(limit=20):
             if len(found)>=limit: return found
     return found
 
-def python_runtimes(limit=12):
-    """Bounded read-only search of PATH pythons and virtual environments under the home folder for speech modules."""
+def python_runtimes(limit=12,extra=()):
+    """Pythons on PATH plus the interpreters the owner listed in the plugin settings (asr_python), checked for speech modules.
+    It does not walk the home folder looking for interpreters to run."""
     candidates=[]
     def add(path):
         if os.access(path,os.X_OK) and str(path) not in [c[0] for c in candidates]: candidates.append((str(path),str(path)))
+    for item in extra:
+        if item: add(Path(str(item)).expanduser())
     for folder in os.environ.get('PATH','').split(os.pathsep):
         for name in ('python3','python'):
             if folder and (Path(folder)/name).is_file(): add(Path(folder)/name)
-    home=Path.home();visited=0;started=time.monotonic()
-    for base,dirs,files in os.walk(home):
-        visited+=1
-        depth=len(Path(base).relative_to(home).parts)
-        dirs[:]=[d for d in dirs if d not in SKIP_DIRS and depth<4]
-        if 'pyvenv.cfg' in files:
-            dirs[:]=[]
-            if (Path(base)/'bin/python').exists(): add(Path(base)/'bin/python')
-        if visited>60000 or len(candidates)>=limit*3 or time.monotonic()-started>6: break
     runtimes=[]
     for shown,real in candidates:
         if len(runtimes)>=limit: break
@@ -72,8 +66,8 @@ def choose_device(versions,gpus,need_mib=5000):
     if '+cpu' in versions.get('torch',''):return 'cpu'
     return 'cuda' if any(g.get('free_mib',0)>=need_mib for g in gpus) else 'cpu'
 
-def local_speech_resources(gpus=()):
-    models=cached_speech_models();runtimes=python_runtimes()
+def local_speech_resources(gpus=(),extra_pythons=()):
+    models=cached_speech_models();runtimes=python_runtimes(extra=extra_pythons)
     adapter=Path(__file__).parent/'examples/transformers_asr.py'
     for runtime in [r for r in runtimes if r['runs_transformers_adapter']][:6]:
         try:
@@ -130,6 +124,17 @@ def substitute(value, values):
     if isinstance(value,dict): return {k:substitute(v,values) for k,v in value.items()}
     return value
 
+def refuse_private_host(hostname):
+    """An online recognizer must resolve to public addresses only: no private, link-local, loopback, multicast or reserved ranges (internal services, cloud metadata)."""
+    import ipaddress,socket
+    try: infos=socket.getaddrinfo(hostname,443,type=socket.SOCK_STREAM)
+    except OSError: raise ValueError('The recognizer host could not be resolved; nothing was uploaded') from None
+    for info in infos:
+        ip=ipaddress.ip_address(info[4][0].split('%')[0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+            raise ValueError('The recognizer host resolves to a private or reserved address (%s); only public online services are allowed. Nothing was uploaded.'%ip)
+
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs): return None
 
@@ -160,6 +165,7 @@ def recognize(config, audio, folder, run, dispatch=None, secret=None):
     if url.scheme not in ('http','https') or not url.hostname or url.username or url.password or url.query or url.fragment: raise ValueError('Use a plain speech endpoint URL without credentials or query parameters')
     local=url.hostname in ('localhost','127.0.0.1','::1')
     if not local and (url.scheme!='https' or config.get('allow_upload') is not True): raise ValueError('Remote recognition needs HTTPS and explicit audio-upload consent')
+    if not local: refuse_private_host(url.hostname)
     if audio.stat().st_size>64*1024*1024: raise ValueError('HTTP audio exceeds 64 MiB; use a local recognizer or analyse a shorter range')
     fields=config.get('fields',{})
     if not isinstance(fields,dict) or len(fields)>30 or not all(isinstance(k,str) and re.fullmatch(r'[A-Za-z0-9_\[\]-]{1,80}',k) and isinstance(v,(str,int,float,bool)) for k,v in fields.items()): raise ValueError('Invalid recognizer form fields')

@@ -1,5 +1,5 @@
 name: creator-studio
-version: "0.4.0"
+version: "0.4.1"
 description: "Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, and narrated step-by-step tutorials."
 author: "Creator Studio contributors"
 license: GPL-3.0-or-later
@@ -97,6 +97,21 @@ provides_tools:
   - tutorial_frame
 config_schema:
   native_image_tool: {type: str, default: "", description: "Optional registered native image-generation tool selected after resource discovery; host owns credentials/model. Main-agent direct image generation plus material_add remains available in other runtimes. No silent fallback."}
+  asr_provider: {type: str, default: "", choices: ["", groq], description: "Which provider the asr_api_key belongs to. Only groq can be called directly; leave empty for your own configured endpoint. Set by you; the model cannot change it."}
+  asr_command: {type: str, default: "", description: "Optional JSON array of arguments for your own trusted local recognizer command, with {audio}, {output}, {model}, {language}. Set by you; the model cannot change it."}
+  asr_command_output: {type: str, default: "stdout", choices: [stdout, file], description: "Whether asr_command prints its JSON to stdout or writes it to {output}."}
+  asr_model: {type: str, default: "", description: "Model name passed to your recognizer (asr_command or asr_endpoint)."}
+  asr_language: {type: str, default: "en", description: "Language code passed to your recognizer."}
+  asr_endpoint: {type: str, default: "", description: "Optional HTTPS (or loopback http) URL of your own speech recognition service. Set by you; the model cannot change it. Online endpoints must resolve to public addresses."}
+  asr_fields: {type: str, default: "", description: "Optional JSON object of extra form fields sent to asr_endpoint (for example model and response_format)."}
+  asr_auth_header: {type: str, default: "", description: "Optional header name that carries asr_api_key (default Authorization)."}
+  asr_auth_prefix: {type: str, default: "", description: "Optional prefix before the key in that header (default Bearer for Authorization)."}
+  asr_allow_upload: {type: str, default: "false", choices: ["false", "true"], description: "Your consent to upload audio to asr_endpoint when it is not on this computer. Set by you."}
+  asr_decoder_command: {type: str, default: "", description: "Optional JSON array of arguments for your own audio decoder, with {media} and {audio}. Default uses FFmpeg."}
+  asr_python: {type: str, default: "", description: "Optional path to a Python that has torch and transformers, used to run a cached Whisper model. Set by you."}
+  asr_server_url: {type: str, default: "", description: "Optional http://127.0.0.1:PORT of a speech server on this computer to include in the setup scan."}
+  camoufox_python: {type: str, default: "", description: "Path to the Python of the Camoufox browser install used for page research (YouTube and podcast parts). Set by you; the model cannot change it."}
+  camoufox_browser: {type: str, default: "", description: "Optional path to the Camoufox browser executable. Set by you."}
   asr_api_key: {type: secret, env: CAPTION_STUDIO_ASR_KEY, required: false, label: "Selected speech service API key", description: "Optional. Used only when you explicitly select an HTTP recognizer with use_api_key. Local commands and imported transcripts need no key. Never paste keys into tool arguments."}
   higgs_url:
     type: str

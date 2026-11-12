@@ -60,7 +60,7 @@
     },
     {
       "name": "capture_status",
-      "description": "Read recording state, media duration and step markers.",
+      "description": "Read recording state, media duration and step markers. With no job_id it lists the newest recordings with what each still needs (the resume path for \"carry on\"): export, narrate or nothing; already spoken cues are cached and never paid for twice.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -68,9 +68,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "job_id"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },

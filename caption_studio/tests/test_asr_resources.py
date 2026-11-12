@@ -23,25 +23,33 @@ class Discovery(unittest.TestCase):
         r = found()
         self.assertEqual([x['id'] for x in r['routes']], ['import']); self.assertIn('import route', r['advice'] + 'import route')
 
-    def test_a_key_makes_the_service_visible_and_only_callable_ones_ready(self):
-        r = {x['id']: x for x in found(keys=('GROQ_API_KEY', 'DEEPGRAM_API_KEY'))['routes']}
-        self.assertTrue(r['remote:groq']['ready']); self.assertFalse(r['remote:deepgram']['ready'])
-        self.assertIn('cannot call it directly', r['remote:deepgram']['detail'])
+    def test_only_the_plugins_own_declared_key_is_considered_and_the_provider_is_the_owners_setting(self):
+        r = {x['id'] for x in found(keys=('CAPTION_STUDIO_ASR_KEY',), settings={'asr_provider': 'groq'})['routes']}
+        self.assertIn('remote:groq', r)
+        r = {x['id'] for x in found(keys=('CAPTION_STUDIO_ASR_KEY',))['routes']}
+        self.assertIn('remote:configured-endpoint', r); self.assertNotIn('remote:groq', r)
+        self.assertEqual({x['id'] for x in found(settings={'asr_provider': 'groq'})['routes']}, {'import'})       # no key, no remote route
+
+    def test_keys_for_other_services_are_never_looked_at(self):
+        asked = []
+        A.discover({}, secret_present=lambda n: asked.append(n) or True, which=lambda n: None, probe=False)
+        self.assertTrue(set(asked) <= set(A.DECLARED_SECRETS), asked)
+        self.assertEqual(A.read_secret('OPENAI_API_KEY'), ''); self.assertEqual(A.read_secret('GROQ_API_KEY'), '')
 
     def test_installed_programs_need_a_wrapper_and_are_not_offered_as_ready(self):
         r = {x['id']: x for x in found(commands=('whisper-cli',))['routes']}
         self.assertFalse(r['program:whisper-cli']['ready']); self.assertIn('wrapper', r['program:whisper-cli']['detail'])
 
     def test_no_secret_value_ever_appears(self):
-        self.assertNotIn('hunter2', json.dumps(found(keys=('GROQ_API_KEY',), settings={'asr_server_url': 'http://127.0.0.1:1', 'x': 'hunter2'})))
+        self.assertNotIn('hunter2', json.dumps(found(keys=('CAPTION_STUDIO_ASR_KEY',), settings={'asr_server_url': 'http://127.0.0.1:1', 'x': 'hunter2'})))
 
     def test_nothing_is_chosen_without_the_users_route(self):
-        r = found(keys=('GROQ_API_KEY',))
+        r = found(keys=('CAPTION_STUDIO_ASR_KEY',), settings={'asr_provider': 'groq'})
         self.assertIsNone(A.chosen(r, None)); self.assertIsNone(A.chosen(r, {'route': None})); self.assertIsNone(A.chosen(r, {'route': 'remote:deepgram'}))
         self.assertEqual(A.chosen(r, {'route': 'remote:groq'})['id'], 'remote:groq')
 
     def test_no_upload_answer_hides_online_routes(self):
-        r = A.filter_routes(found(keys=('GROQ_API_KEY',)), {'asr_allow_upload': 'false'})
+        r = A.filter_routes(found(keys=('CAPTION_STUDIO_ASR_KEY',), settings={'asr_provider': 'groq'}), {'asr_allow_upload': 'false'})
         self.assertEqual([x['id'] for x in r['routes']], ['import'])
 
 
@@ -87,14 +95,14 @@ class Recommend(unittest.TestCase):
 class Interview(unittest.TestCase):
     def test_first_use_lists_options_and_asks_and_picks_nothing(self):
         with tempfile.TemporaryDirectory() as d:
-            out = A.interview({}, Path(d) / 'ns', found(keys=('GROQ_API_KEY',)), hw={'os': 'linux', 'cpu_threads': 4, 'ram_gb': 8, 'gpus': [], 'apple_silicon': False})
+            out = A.interview({}, Path(d) / 'ns', found(keys=('CAPTION_STUDIO_ASR_KEY',), settings={'asr_provider': 'groq'}), hw={'os': 'linux', 'cpu_threads': 4, 'ram_gb': 8, 'gpus': [], 'apple_silicon': False})
             self.assertEqual(out['state'], 'interview_needed'); self.assertEqual({o['id'] for o in out['options']}, {'import', 'remote:groq'})
             self.assertIn('Do not choose a speech recognizer for the user', out['instructions_for_agent']); self.assertIn('knowledge_freshness', out)
             self.assertIn('chat plans are separate from API billing', out['instructions_for_agent']); self.assertIsNone(A.load_profile(Path(d) / 'ns'))
 
     def test_a_refused_interview_saves_nothing_and_a_route_must_be_offered(self):
         with tempfile.TemporaryDirectory() as d:
-            root = Path(d) / 'ns'; r = found(keys=('GROQ_API_KEY',))
+            root = Path(d) / 'ns'; r = found(keys=('CAPTION_STUDIO_ASR_KEY',), settings={'asr_provider': 'groq'})
             with self.assertRaisesRegex(ValueError, 'Ask the user which'):
                 A.interview({}, root, r, {**ANSWERS, 'allow_upload': True})
             self.assertIsNone(A.load_profile(root))
@@ -169,6 +177,34 @@ class Knowledge(unittest.TestCase):
         other = ROOT.parent / 'common' / 'speech_resources.py'
         if other.exists():
             self.assertEqual(block(other), block(ROOT / 'asr_resources.py'))
+
+class WrongKindOfServer(unittest.TestCase):
+    def test_a_speech_synthesis_server_is_not_offered_as_a_recognizer(self):
+        from unittest import mock
+        servers = lambda urls, probe=True: [{'url': 'http://127.0.0.1:8000', 'models': ['bosonai/higgs-tts-3-4b']}, {'url': 'http://127.0.0.1:8080', 'models': ['Systran/faster-whisper-small.en']}]
+        with mock.patch.object(A, 'find_transcription_servers', servers):
+            ids = [r['id'] for r in A.discover({}, secret_present=lambda n: False, which=lambda n: None, probe=True)['routes']]
+        self.assertNotIn('server:http://127.0.0.1:8000', ids); self.assertIn('server:http://127.0.0.1:8080', ids)
+
+class OwnerCommandRoute(unittest.TestCase):
+    CMD = '["/usr/bin/python3", "/opt/recognize.py"]'
+
+    def test_the_owners_own_command_is_a_route_the_user_can_choose(self):
+        report = found(settings={'asr_command': self.CMD, 'asr_model': 'small.en'})
+        route = next(r for r in report['routes'] if r['id'] == 'configured:command')
+        self.assertEqual((route['kind'], route['ready'], route['local']), ('command', True, True))
+        rec = A.recognizer_for(route, {})
+        self.assertEqual((rec['kind'], rec['argv'], rec['model']), ('command', ['/usr/bin/python3', '/opt/recognize.py'], 'small.en'))
+
+    def test_it_can_be_saved_while_uploads_are_off(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = found(settings={'asr_command': self.CMD})
+            saved = A.apply_setup(Path(tmp), report, {}, {**ANSWERS, 'allow_upload': False, 'route': 'configured:command'})
+            self.assertEqual(saved['state'], 'saved'); self.assertEqual(saved['you_chose'], 'configured:command')
+
+    def test_a_bad_command_setting_is_ignored_not_trusted(self):
+        for bad in ('not json', '"a string"', '[]', '[1, 2]', '[""]'):
+            self.assertNotIn('configured:command', [r['id'] for r in found(settings={'asr_command': bad})['routes']])
 
 
 if __name__ == '__main__':

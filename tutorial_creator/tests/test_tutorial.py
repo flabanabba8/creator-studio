@@ -40,10 +40,10 @@ class Boundaries(unittest.TestCase):
             def __init__(self): self.keys = []
             def get_config(self, key): self.keys.append(key); return {'higgs_model': 'fixture-model'}.get(key)
         ctx = Context()
-        with patch('plugins.plugin_storage.plugin_data_dir', return_value=Path('/tmp/fixture')), patch.object(package, 'narrate', return_value={}) as narrate_call:
+        with patch('plugins.plugin_storage.plugin_data_dir', return_value=Path('/tmp/fixture')), patch.object(package, 'narrate', return_value={}) as narrate_call, patch.object(package.speech_resources, 'load_profile', return_value={'allow_cloud': True, 'allow_paid': False, 'budget_usd': 0, 'route': 'system:flite'}):
             result = json.loads(package.invoke('tutorial_narrate', {'job_id': 'fixture'}, ctx))
         self.assertEqual(result, {})
-        self.assertEqual(narrate_call.call_args.kwargs['settings'], {'higgs_model': 'fixture-model'})
+        self.assertEqual(narrate_call.call_args.kwargs['settings'], {'higgs_model': 'fixture-model', 'speech_route': 'system:flite'})
 
     def test_unsupported_platform_reports_linux_before_capture(self):
         with tempfile.TemporaryDirectory(dir='/tmp') as tmp, patch.object(package.core.sys,'platform','win32'):

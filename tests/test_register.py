@@ -51,7 +51,7 @@ class RegisterTests(unittest.TestCase):
 
     def test_tools_match_manifest_exactly(self):
         declared = manifest_tools()
-        self.assertEqual(len(declared), 64)
+        self.assertEqual(len(declared), 67)
         self.assertEqual(len(set(self.ctx.tools)), len(self.ctx.tools), 'a tool name was registered twice')
         self.assertEqual(sorted(self.ctx.tools), sorted(declared))
 

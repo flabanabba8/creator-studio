@@ -181,3 +181,70 @@ def synthesize(text, voice, model, *, project, ledger_path, max_usd=DEFAULT_MAX_
         row['status'] = 'audio_invalid'; _save(ledger_path, ledger)
         raise SpeechError('Gemini returned incomplete or invalid audio; no retry was made') from None
     return audio
+
+
+def _find_audio(node):
+    if isinstance(node, dict):
+        if node.get('type') == 'audio' and isinstance(node.get('data'), str): return node
+        for value in node.values():
+            found = _find_audio(value)
+            if found: return found
+    elif isinstance(node, list):
+        for value in node:
+            found = _find_audio(value)
+            if found: return found
+    return None
+
+
+def synthesize_developer(text, voice, model, *, api_key, ledger_path, max_usd=DEFAULT_MAX_USD, post=None):
+    """Gemini speech with the user's own Gemini API key (no Cloud project, no Google sign-in).
+
+    Same request shape as pagecast-director's hosted Gemini route (Interactions API). Same spend guard and
+    ledger as the Vertex route, one request per cue, no retries. The key is never written anywhere.
+    NOT live-tested in this plugin (no key was spent); `post` lets tests supply a fake network."""
+    if not isinstance(text, str) or not text.strip() or len(text.encode('utf-16-le')) // 2 > 2000:
+        raise ValueError('Gemini speech text must contain 1-2000 UTF-16 code units')
+    if voice not in VOICES: raise ValueError('Choose a listed Gemini voice name, for example ' + DEFAULT_VOICE)
+    if model not in MODELS: raise ValueError('Gemini speech requires gemini-3.8-flash-tts or gemini-3.8-flash-lite-tts')
+    if not isinstance(api_key, str) or not api_key.strip() or any(not 32 < ord(c) < 127 for c in api_key.strip()):
+        raise SpeechError('Set the Gemini API key (gemini_api_key) in this plugin\'s Hermes settings; nothing was sent')
+    if isinstance(max_usd, bool) or not isinstance(max_usd, (int, float)) or not 0 < max_usd <= 100:
+        raise ValueError('Set a Gemini speech budget between 0 and 100 USD')
+    ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else []
+    estimate = estimate_usd(text); spent = sum(row['reserved_or_actual_usd'] for row in ledger)
+    if spent + estimate > max_usd:
+        raise SpeechError('The spending guard: %.4f USD spent or reserved so far; this cue (estimated %.4f USD) was refused without being sent (cap %.4f USD).' % (spent, estimate, max_usd))
+    body = {'model': model, 'input': [{'type': 'user_input', 'content': [{'type': 'text', 'text': text}]}],
+            'response_format': {'type': 'audio', 'mime_type': 'audio/wav', 'sample_rate': 24000},
+            'generation_config': {'speech_config': [{'voice': voice}]}}
+    row = {'started': time.time(), 'status': 'pending', 'model': model, 'voice': voice, 'route': 'developer', 'reserved_or_actual_usd': estimate}
+    ledger.append(row); _save(ledger_path, ledger)
+    if post is None:
+        import http.client
+        def post(url_host, path, headers, payload):
+            conn = http.client.HTTPSConnection(url_host, timeout=90)
+            try:
+                conn.request('POST', path, body=json.dumps(payload).encode(), headers={**headers, 'Content-Type': 'application/json'})
+                resp = conn.getresponse()
+                return resp.status, resp.read(MAX_RESPONSE + 1)
+            finally:
+                conn.close()
+    try:
+        status, content = post('generativelanguage.googleapis.com', '/v1beta/interactions', {'x-goog-api-key': api_key.strip()}, body)
+    except Exception:
+        row['status'] = 'unknown'; _save(ledger_path, ledger)
+        raise SpeechError('Gemini transport failure; the billed outcome is unknown; no retry was made') from None
+    if status != 200:
+        row['status'] = 'rejected' if 400 <= status < 500 else 'unknown'
+        if row['status'] == 'rejected': row['reserved_or_actual_usd'] = 0
+        _save(ledger_path, ledger)
+        raise SpeechError('Gemini speech HTTP %d (%s); no retry was made' % (status, {401: 'key rejected', 403: 'access denied', 404: 'model or voice not found', 429: 'quota reached'}.get(status, 'request failed')))
+    row['status'] = 'received'; _save(ledger_path, ledger)
+    try:
+        if len(content) > MAX_RESPONSE: raise ValueError('response too large')
+        audio = base64.b64decode(_find_audio(json.loads(content))['data'], validate=True)
+        if audio[:4] != b'RIFF' or audio[8:12] != b'WAVE': raise ValueError('expected WAV')
+    except Exception:
+        row['status'] = 'audio_invalid'; _save(ledger_path, ledger)
+        raise SpeechError('Gemini returned no valid WAV audio; no retry was made') from None
+    return audio

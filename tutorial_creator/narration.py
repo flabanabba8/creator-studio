@@ -14,6 +14,7 @@ from .loopback import LoopbackHTTPHandler
 from .reference_paths import resolve_reference
 from . import host_speech
 from . import gemini_speech
+from ._resources import speech_resources
 
 CREDIT = "This audio was created with Boson AI's Higgs Audio — https://www.boson.ai/higgs-audio"
 
@@ -89,6 +90,20 @@ def srt_time(seconds):
     return f'{ms//3600000:02}:{ms//60000%60:02}:{ms//1000%60:02},{ms%1000:03}'
 
 
+
+def apply_choice(chosen, settings):
+    """Turn a discovered route into this module's backend names and settings. Returns (backend, settings)."""
+    kind = chosen['kind']
+    if kind == 'system':
+        return 'system', {**settings, 'system_tool': chosen['tool']}
+    if kind == 'server':
+        model = settings.get('speech_http_model') or (chosen.get('models') or [''])[0]
+        return 'local_http', {**settings, 'speech_http_url': chosen['id'].split(':', 1)[1], 'speech_http_model': model}
+    if kind == 'host':
+        return 'host', settings
+    return 'gemini', {**settings, 'gemini_route': chosen['id'].split(':')[1]}
+
+
 def narrate(root, job_id, export_name, cues, settings, dispatch=None, import_from_project=False):
     if type(import_from_project) is not bool: raise ValueError('import_from_project must be true or false')
     export_name = clean_export_name(export_name)
@@ -96,25 +111,36 @@ def narrate(root, job_id, export_name, cues, settings, dispatch=None, import_fro
     timeline = director.timeline(job_id, export_name)
     validate_cues(cues, timeline['seconds'])
     folder = director.job(job_id)
-    backend=settings.get('narration_backend','gemini')
-    if backend not in ('higgs','local_http','host','gemini'):raise ValueError('Select Gemini 3.8 speech, a configured compatible local speech service or an available host speech tool')
+    backend=settings.get('narration_backend','chosen')
+    if backend not in ('chosen','system','higgs','local_http','host','gemini'):raise ValueError('narration_backend is chosen (the route the user picked in the speech setup), system, a local speech server, Gemini or a host speech tool')
+    chosen=None
+    if backend=='chosen' or backend=='system' and not settings.get('system_tool'):
+        settings=dict(settings)
+        report=speech_resources.discover(settings,secret_present=lambda n:bool(settings.get('gemini_api_key')) if n=='GEMINI_API_KEY' else False,hosted=('gemini',))
+        if backend=='chosen':
+            chosen=speech_resources.chosen(report,{'route':settings.get('speech_route')})
+            if chosen is None:raise ValueError('No speech route has been chosen, or the chosen one is no longer available. Ask the user which route to use (tutorial_speech_setup). '+report['advice'])
+        else:chosen=speech_resources.resolve(settings,'system',report)
+        backend,settings=apply_choice(chosen,settings)
+    if backend in('gemini','host'):speech_resources.refuse_cloud_if_forbidden(settings,'an online or host speech route')
     gem_model=settings.get('gemini_model') or gemini_speech.DEFAULT_MODEL
     gem_voice=settings.get('gemini_voice') or gemini_speech.DEFAULT_VOICE
     gem_ledger=folder/'gemini-usage.json'
+    gem_route=(settings.get('gemini_route') or ('developer' if settings.get('gemini_api_key') else 'vertex')) if backend=='gemini' else ''
     if backend=='gemini':
-        gem_project=gemini_speech.project_id(settings.get('gemini_project',''))
+        gem_project=gemini_speech.project_id(settings.get('gemini_project','')) if gem_route=='vertex' else None
         try:gem_max=float(settings.get('gemini_max_usd') or gemini_speech.DEFAULT_MAX_USD)
         except (TypeError,ValueError):raise ValueError('Set a Gemini speech budget between 0 and 100 USD') from None
     base = settings.get('speech_http_url','') if backend=='local_http' else settings.get('higgs_url', 'http://localhost:8000')
     selected=host_speech.binding(settings) if backend=='host' else None
-    if backend not in ('host','gemini'):endpoint(base)
+    if backend not in ('host','gemini','system'):endpoint(base)
     model = settings.get('speech_http_model','') if backend=='local_http' else settings.get('higgs_model', 'bosonai/higgs-tts-3-4b')
     if backend=='local_http' and not model:raise ValueError('Choose the model actually served by the selected local speech endpoint')
-    voice = gem_voice if backend=='gemini' else settings.get('host_tts_voice','default') if backend=='host' else settings.get('speech_http_voice','default') if backend=='local_http' else settings.get('higgs_voice', 'default')
+    voice = settings.get('system_voice') or speech_resources.DEFAULT_VOICE.get(settings.get('system_tool'),'default') if backend=='system' else gem_voice if backend=='gemini' else settings.get('host_tts_voice','default') if backend=='host' else settings.get('speech_http_voice','default') if backend=='local_http' else settings.get('higgs_voice', 'default')
     reference_audio = settings.get('speech_http_reference_audio','') if backend=='local_http' else settings.get('higgs_reference_audio', '')
     reference_text = settings.get('speech_http_reference_text','') if backend=='local_http' else settings.get('higgs_reference_text', '')
     reference_digest = ''
-    if reference_audio and backend not in ('host','gemini'):
+    if reference_audio and backend not in ('host','gemini','system'):
         reference = resolve_reference(reference_audio, root)
         origin = None
         for parent in reference.parents:
@@ -143,7 +169,7 @@ def narrate(root, job_id, export_name, cues, settings, dispatch=None, import_fro
     rendered, problems, credits = [], [], []
     for i, cue in enumerate(cues):
         revision=settings.get('speech_http_revision','') if backend=='local_http' else settings.get('higgs_revision','')
-        identity=['gemini-speech-v1',gem_model,voice,cue['text']] if backend=='gemini' else [base, model, revision, voice, cue['text'], reference_audio, reference_digest, reference_text] if backend!='host' else ['host-speech-v1',selected,voice,cue['text']]
+        identity=['system-speech-v1',settings.get('system_tool'),voice,cue['text']] if backend=='system' else ['gemini-speech-v1',gem_model,voice,cue['text']]+([gem_route] if gem_route=='developer' else []) if backend=='gemini' else [base, model, revision, voice, cue['text'], reference_audio, reference_digest, reference_text] if backend!='host' else ['host-speech-v1',selected,voice,cue['text']]
         key = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
         audio = cache / (key + '.wav')
         reused = audio.exists()
@@ -156,6 +182,13 @@ def narrate(root, job_id, export_name, cues, settings, dispatch=None, import_fro
                 def observe(state,metadata):write_json(attempt,{'state':state,'retry_nonce':nonce,'metadata':metadata})
                 data,metadata=host_speech.synthesize(settings,dispatch,cue['text'],voice,root,observe)
                 write_json(audio.with_suffix('.metadata.json'),metadata)
+            elif backend=='system':
+                tmp_wav=cache/(uuid.uuid4().hex+'.system.wav')
+                try:
+                    speech_resources.synthesize_system(settings['system_tool'],cue['text'],voice,tmp_wav,piper_model=settings.get('piper_model',''))
+                    data=tmp_wav.read_bytes()
+                finally:tmp_wav.unlink(missing_ok=True)
+            elif backend=='gemini' and gem_route=='developer':data=gemini_speech.synthesize_developer(cue['text'],voice,gem_model,api_key=settings.get('gemini_api_key',''),ledger_path=gem_ledger,max_usd=gem_max)
             elif backend=='gemini':data=gemini_speech.synthesize(cue['text'],voice,gem_model,project=gem_project,ledger_path=gem_ledger,max_usd=gem_max)
             elif backend=='local_http':data=synthesize(base,model,cue['text'],voice,reference_audio,reference_text,extra_fields=settings.get('speech_http_fields'),higgs_defaults=False)
             else:data = synthesize(base, model, cue['text'], voice, reference_audio, reference_text)
@@ -213,8 +246,9 @@ def narrate(root, job_id, export_name, cues, settings, dispatch=None, import_fro
         caption_lines.append(f'{i}\n{srt_time(clip["start"])} --> {srt_time(clip["start"] + clip["measured_seconds"])}\n{text}\n')
     captions.write_text('\n'.join(caption_lines), encoding='utf-8')
     result = {'state': 'complete', 'path': str(output), 'captions': str(captions), 'caption_timing': 'segment-level, measured audio duration; not word alignment',
-              'seconds': float(final['format']['duration']), 'credit': CREDIT if backend=='higgs' else 'Speech by Google Gemini 3.8 Flash TTS (voice '+gem_voice+')' if backend=='gemini' else '\n'.join(credits) if backend=='host' else str(settings.get('speech_http_credit','')),
+              'seconds': float(final['format']['duration']), 'credit': 'Speech by %s on this computer (voice %s)'%(settings.get('system_tool'),voice) if backend=='system' else CREDIT if backend=='higgs' else 'Speech by Google Gemini 3.8 Flash TTS (voice '+gem_voice+')' if backend=='gemini' else '\n'.join(credits) if backend=='host' else str(settings.get('speech_http_credit','')),
               'cues': [{k: v for k, v in r.items() if k != 'path'} for r in rendered]}
+    result['speech_route']={'backend':backend,'route_source':'the route the user chose' if chosen is not None else 'explicit setting','detail':(chosen or {}).get('detail',''),'cloud':backend in('gemini','host'),'route':gem_route or settings.get('system_tool','')}
     if backend=='gemini':result['usage']=gemini_speech.usage_summary(gem_ledger);result['voice']=gem_voice;result['model']=gem_model
     write_json(output.with_suffix('.json'), result)
     output.with_suffix('.credit.txt').write_text(result['credit'] + '\n', encoding='utf-8')

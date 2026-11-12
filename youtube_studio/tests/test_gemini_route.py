@@ -7,6 +7,7 @@ ROOT=Path(__file__).parents[1]
 spec=importlib.util.spec_from_file_location('cs_t.video_gemini_fixture',ROOT/'__init__.py',submodule_search_locations=[str(ROOT)])
 module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
 from cs_t.common import gemini_speech as g
+from cs_t.common import speech_resources as sr
 from cs_t.video_gemini_fixture.media_project import MediaProject
 HAVE=shutil.which('ffmpeg')
 SECRET_PROJECT='my-private-project-123'
@@ -45,8 +46,23 @@ class Route(unittest.TestCase):
     @unittest.skipUnless(HAVE,'ffmpeg required')
     def test_default_engine_is_gemini_when_available(self):
         app,pid=self.project()
-        with mock.patch.object(g,'available',lambda:{'available':True}):out=app.narrate(pid,voice='Kore')
-        self.assertEqual(out['engine'],'gemini')
+        sr.save_profile(app.root.parent,{'needs':'test','quality':'natural','allow_cloud':True,'allow_paid':True,'budget_usd':1,'has':[],'route':'gemini:vertex'})
+        with mock.patch.object(g,'available',lambda:{'available':True}),mock.patch.object(sr,'find_servers',lambda *a,**k:[]):out=app.narrate(pid,voice='Kore')
+        self.assertEqual(out['engine'],'gemini')   # the route the user chose
+    def test_first_use_asks_which_voice_and_never_picks_one(self):
+        app,pid=self.project()
+        out=app.narrate(pid)
+        self.assertEqual(out['state'],'interview_needed');self.assertTrue(out['options'] or out['advice']);self.assertEqual(self.calls,[])
+        self.assertIn('Do not choose a speech engine',out['instructions_for_agent'])
+        with self.assertRaisesRegex(ValueError,'Ask the user which'):app.speech_setup({'needs':'lessons','quality':'plain-ok','allow_cloud':False,'allow_paid':False,'budget_usd':0,'has':[]})
+        self.assertEqual(app.narrate(pid)['state'],'interview_needed')   # still nothing chosen
+        if shutil.which('flite') and HAVE:
+            saved=app.speech_setup({'needs':'lessons','quality':'plain-ok','allow_cloud':False,'allow_paid':False,'budget_usd':0,'has':[],'route':'system:flite'})
+            self.assertEqual(saved['you_chose'],'system:flite')
+            with self.assertRaisesRegex(ValueError,'nothing should be sent to an online'):app.narrate(pid,engine='gemini',voice='Kore')
+            self.assertEqual(self.calls,[])   # nothing left the computer
+            done=app.narrate(pid)
+            self.assertEqual((done['engine'],done['cloud'],done['route_source']),('system',False,'the route the user chose'));self.assertEqual(self.calls,[])
     def test_voice_required_and_validated(self):
         app,pid=self.project()
         with self.assertRaisesRegex(ValueError,'Choose a Gemini voice'):app.narrate(pid,engine='gemini')

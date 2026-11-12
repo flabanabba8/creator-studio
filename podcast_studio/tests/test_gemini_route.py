@@ -30,24 +30,32 @@ class Route(unittest.TestCase):
         app=MediaProject(self.root/'data','podcast');pid=app.create('T',factual=False)['project_id']
         app.script(pid,[{'title':'A','turns':[{'speaker':'Host','text':'Welcome to the show.'},{'speaker':'Guest','text':'Glad to be here.'}]},{'title':'B','turns':[{'speaker':'Host','text':'Goodbye.'}]}])
         return app,pid
+    @unittest.skipUnless(HAVE and shutil.which('flite'),'ffmpeg and flite required')
+    def test_asks_first_then_uses_exactly_the_chosen_free_local_voices_with_no_network(self):
+        app,pid=self.project()
+        self.assertEqual(app.narrate(pid)['state'],'interview_needed')
+        app.speech_setup({'needs':'a show','quality':'plain-ok','allow_cloud':False,'allow_paid':False,'budget_usd':0,'has':[],'route':'system:flite'})
+        out=app.narrate(pid)
+        self.assertEqual((out['engine'],out['cloud'],out['route_source']),('system',False,'the route the user chose'));self.assertEqual(self.calls,[])
+        self.assertEqual(len(out['voices']),2)
     @unittest.skipUnless(HAVE,'ffmpeg required')
     def test_two_hosts_get_their_own_voices_one_request_each_and_resume_without_rerolls(self):
-        app,pid=self.project();out=app.narrate(pid,voices={'Host':'Charon','Guest':'Leda'})
+        app,pid=self.project();out=app.narrate(pid,engine='gemini',voices={'Host':'Charon','Guest':'Leda'})
         self.assertEqual((out['recorded_now'],len(self.calls)),(3,3))
         self.assertEqual([c['generationConfig']['speechConfig']['voiceConfig']['voice']for c in self.calls],['Charon','Leda','Charon'])
         self.assertEqual([len(s['audio_ids'])for s in app.load(pid)[1]['sections']],[2,1]);self.assertNotIn(SECRET,json.dumps(out))
-        self.assertEqual(app.narrate(pid,voices={'Host':'Charon','Guest':'Leda'})['already_recorded'],3);self.assertEqual(len(self.calls),3)
+        self.assertEqual(app.narrate(pid,engine='gemini',voices={'Host':'Charon','Guest':'Leda'})['already_recorded'],3);self.assertEqual(len(self.calls),3)
     def test_voice_choice_required_and_checked_before_any_request(self):
         app,pid=self.project()
-        with self.assertRaisesRegex(ValueError,'Choose Gemini voices'):app.narrate(pid)
-        with self.assertRaisesRegex(ValueError,'No voice chosen'):app.narrate(pid,voices={'Host':'Charon'})
-        with self.assertRaisesRegex(ValueError,'named Gemini voices'):app.narrate(pid,voice='Nobody')
+        with self.assertRaisesRegex(ValueError,'Choose Gemini voices'):app.narrate(pid,engine='gemini')
+        with self.assertRaisesRegex(ValueError,'No voice chosen'):app.narrate(pid,engine='gemini',voices={'Host':'Charon'})
+        with self.assertRaisesRegex(ValueError,'named Gemini voices'):app.narrate(pid,engine='gemini',voice='Nobody')
         self.assertEqual(self.calls,[])
     @unittest.skipUnless(HAVE,'ffmpeg required')
     def test_start_topic_reports_the_route_and_the_episode_assembles(self):
         app=MediaProject(self.root/'data2','podcast')
         with mock.patch.object(g,'available',lambda:{'available':True,'voices':[]}):self.assertTrue(app.create('T',factual=False)['gemini_speech']['available'])
-        app,pid=self.project();app.narrate(pid,voices={'Host':'Charon','Guest':'Leda'});result=app.assemble(pid)
+        app,pid=self.project();app.narrate(pid,engine='gemini',voices={'Host':'Charon','Guest':'Leda'});result=app.assemble(pid)
         self.assertAlmostEqual(result["seconds"],4.5,delta=.3)
         turns=[t for sec in result['timeline'] for t in sec['turns']]
         self.assertEqual([(t['speaker'],t['voice']) for t in turns],[('Host','Charon'),('Guest','Leda'),('Host','Charon')])
@@ -62,7 +70,7 @@ class Files(Route):
     def test_show_notes_and_speaker_captions_come_from_the_measured_timeline(self):
         app,pid=self.project()
         with self.assertRaisesRegex(ValueError,'Assemble'):app.episode_files(pid)
-        app.narrate(pid,voices={'Host':'Charon','Guest':'Leda'});app.assemble(pid)
+        app.narrate(pid,engine='gemini',voices={'Host':'Charon','Guest':'Leda'});app.assemble(pid)
         out=app.episode_files(pid,str(self.root));self.assertEqual(out['speakers'],{'Host':'Charon','Guest':'Leda'})
         notes=(self.root/'show-notes.md').read_text();self.assertIn('Host (Gemini voice Charon)',notes);self.assertIn('0:00 A',notes)
         srt=(self.root/'captions.srt').read_text();self.assertIn('Guest: Glad to be here.',srt);self.assertIn('00:00:00,000 -->',srt)

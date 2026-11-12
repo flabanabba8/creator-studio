@@ -1,5 +1,5 @@
 name: creator-studio
-version: "0.3.0"
+version: "0.4.0"
 description: "Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, and narrated step-by-step tutorials."
 author: "Creator Studio contributors"
 license: GPL-3.0-or-later
@@ -36,6 +36,7 @@ provides_tools:
   - youtube_write_script
   - youtube_material_add
   - youtube_narrate
+  - youtube_speech_setup
   - youtube_assemble_project
   - youtube_project_status
   - youtube_check_timeline
@@ -53,6 +54,7 @@ provides_tools:
   - podcast_write_script
   - podcast_material_add
   - podcast_narrate
+  - podcast_speech_setup
   - podcast_assemble_project
   - podcast_episode_files
   - podcast_project_status
@@ -89,6 +91,7 @@ provides_tools:
   - capture_export
   - tutorial_timeline
   - tutorial_narrate
+  - tutorial_speech_setup
   - tutorial_step
   - tutorial_frame
 config_schema:
@@ -118,7 +121,12 @@ config_schema:
     type: str
     default: ""
     description: "Transcript of the optional voice reference."
-  narration_backend: {type: str, default: "gemini", choices: [gemini, higgs, local_http, host], description: "gemini = Gemini 3.8 Flash TTS with a Google sign-in held by Hermes (default; run hermes auth add creator-studio:google once); or a configured compatible local speech HTTP, or an explicitly selected host speech tool."}
+  narration_backend: {type: str, default: "chosen", choices: [chosen, system, gemini, higgs, local_http, host], description: "chosen = the speech route you picked in the first-use interview (the plugin lists what it found on this computer and asks; it never picks for you). The others force one route."}
+  system_tool: {type: str, default: "", description: "Optional: force one installed speech program (espeak-ng, flite, piper, say, sapi) for narration_backend=system."}
+  system_voice: {type: str, default: "", description: "Voice name for that program (for example en-us for espeak-ng); empty = its default."}
+  piper_model: {type: str, default: "", description: "Path to a local Piper voice model (.onnx) to enable Piper."}
+  gemini_api_key: {type: secret, env: GEMINI_API_KEY, required: false, label: "Gemini API key", description: "Optional. Lets Gemini narration work without a Google Cloud project or sign-in. Stored by Hermes; text is sent to Google and may use quota or billing."}
+  gemini_route: {type: str, default: "", choices: ["", developer, vertex], description: "Gemini route: developer (API key) or vertex (Cloud project + Hermes sign-in). Empty = developer if a key is set, else vertex if a project is set."}
   gemini_voice: {type: str, default: "Achird", description: "Gemini prebuilt voice name; capture_sources lists all 30 with gender, trait and measured pitch."}
   gemini_model: {type: str, default: "gemini-3.8-flash-tts", choices: [gemini-3.8-flash-tts, gemini-3.8-flash-lite-tts], description: "Gemini speech model."}
   gemini_max_usd: {type: str, default: "0.50", description: "Spending guard per tutorial in USD (conservative list rates); a request that could pass it is not sent."}

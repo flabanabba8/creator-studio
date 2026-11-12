@@ -52,9 +52,15 @@ Inputs: `project_id` (required), `source_path` (required), `kind` (required), `s
 
 ## youtube_narrate
 
-Record the whole script, one request per spoken part, no rerolls, raw takes kept, normalized and attached to the right section in order. Default engine is Gemini 3.8 Flash TTS on Vertex AI (engine gemini, pass a voice name that fits the lesson from gemini_speech.voices in youtube_start_topic; spend guard max_usd default 0.50, usage returned) whenever it is set up on this computer; otherwise (or with engine local) a speech server on THIS computer (found automatically; see speech_servers from youtube_start_topic): one request per spoken turn, 60 words or fewer each, no rerolls, raw takes kept, normalized to mono 24 kHz WAV and attached to the right section in order. Optional voice reference: reference_audio (a WAV file of at most 30 seconds, any readable path) with reference_text (exactly what it says); the plugin sends it with each request itself. Replaces hand-written speech requests. Turns already recorded are skipped.
+Record the whole script, one request per spoken part, no rerolls, raw takes kept, normalized and attached to the right section in order. The plugin never picks a voice engine itself. Until the user has chosen a route (youtube_speech_setup, which lists what this computer has and asks) this returns the options and questions instead of audio. Then engine chosen (default) uses exactly that route; engine gemini (pass a voice name from gemini_speech.voices; spend guard max_usd default 0.50, usage returned), system or local force one explicitly. engine local = a speech server on THIS computer (found automatically; see speech_servers from youtube_start_topic): one request per spoken turn, 60 words or fewer each, no rerolls, raw takes kept, normalized to mono 24 kHz WAV and attached to the right section in order. Optional voice reference: reference_audio (a WAV file of at most 30 seconds, any readable path) with reference_text (exactly what it says); the plugin sends it with each request itself. Replaces hand-written speech requests. Turns already recorded are skipped.
 
 Inputs: `project_id` (required), `engine` (optional), `voice` (optional), `max_usd` (optional), `reference_audio` (optional), `reference_text` (optional), `base_url` (optional), `model` (optional).
+
+## youtube_speech_setup
+
+First-use interview and speech check. Without answers: returns what speech resources this computer has (installed speech programs, speech servers that answer, Gemini set-up) and the questions to ask the user: what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have. With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing. Narration returns the options and these questions until a route has been chosen.
+
+Inputs: `answers` (optional).
 
 ## youtube_assemble_project
 

@@ -40,9 +40,15 @@ Inputs: `project_id` (required), `source_path` (required), `kind` (required), `s
 
 ## podcast_narrate
 
-Record the whole script with Gemini 3.8 Flash TTS (Vertex AI, set up on this computer; see gemini_speech from the start tool): one request per spoken turn (100 words or fewer), no rerolls, raw takes kept, normalized and attached to the right section in order. Pass voice for one host or voices {speaker: voice name} so different speakers get clearly different voices; the voice list says gender and trait. A 0.50 USD spend guard (max_usd) applies and usage is returned. The Google Cloud project is read from the machine configuration and never shown. Turns already recorded are skipped.
+The plugin never picks a voice engine itself. Until the user has chosen a route (podcast_speech_setup, which lists what this computer has and asks) this returns the options and questions instead of audio. engine chosen (default) uses exactly that route (an installed speech program with a different voice per speaker, or Gemini); system or gemini force one explicitly. Record the whole script with Gemini 3.8 Flash TTS (Vertex AI, set up on this computer; see gemini_speech from the start tool): one request per spoken turn (100 words or fewer), no rerolls, raw takes kept, normalized and attached to the right section in order. Pass voice for one host or voices {speaker: voice name} so different speakers get clearly different voices; the voice list says gender and trait. A 0.50 USD spend guard (max_usd) applies and usage is returned. The Google Cloud project is read from the machine configuration and never shown. Turns already recorded are skipped.
 
-Inputs: `project_id` (required), `voice` (optional), `voices` (optional), `max_usd` (optional).
+Inputs: `project_id` (required), `voice` (optional), `engine` (optional), `voices` (optional), `max_usd` (optional).
+
+## podcast_speech_setup
+
+First-use interview and speech check. Without answers: returns what speech resources this computer has (installed speech programs, speech servers that answer, Gemini set-up) and the questions to ask the user: what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have. With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing. Narration returns the options and these questions until a route has been chosen.
+
+Inputs: `answers` (optional).
 
 ## podcast_assemble_project
 

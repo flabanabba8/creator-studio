@@ -7,6 +7,7 @@ from pathlib import Path
 from .core import Director, sources, window_pid, is_spreadsheet_grid, set_clipboard
 from .narration import narrate
 from . import gemini_speech
+from ._resources import speech_resources
 
 
 _step_lock = threading.Lock()
@@ -32,10 +33,12 @@ TOOLS = {
         'job_id': {'type': 'string'}, 'export_name': {'type': 'string'}}, ['job_id']),
     'tutorial_frame': ('Decode a frame at a requested export timestamp so the agent can inspect what actually appears before writing narration. Returns a local PNG path; no image model is called.', {
         'job_id': {'type': 'string'}, 'export_name': {'type': 'string'}, 'seconds': {'type': 'number', 'minimum': 0}}, ['job_id', 'export_name', 'seconds']),
-    'tutorial_narrate': ('Generate timestamped narration and mix it into a completed export. Default route: Gemini 3.8 Flash TTS with a Google sign-in held by Hermes, one request per cue, a named voice (see capture_sources, speech section) and a spend guard; other routes are a configured local speech service or a host speech tool. Measures every clip, refuses overruns without speeding/cutting speech, caches unchanged cues, and writes segment captions plus the speech credit and usage. Does not start or install a model.', {
+    'tutorial_narrate': ('Generate timestamped narration and mix it into a completed export. The route is the one the USER chose in the first-use interview (narration_backend chosen); the plugin never picks a voice engine itself. Until a route is chosen this returns interview_needed with the options found and the questions to ask (call tutorial_speech_setup with the answers, including route). The speech_route field of the result says which route really ran. One request per cue; a named voice for online routes.', {
         'job_id': {'type': 'string'}, 'export_name': {'type': 'string'}, 'import_from_project': {'type': 'boolean', 'description': 'Explicitly copy a configured voice reference from another project and record its origin.'}, 'cues': {'type': 'array', 'minItems': 1, 'maxItems': 20,
             'items': {'type': 'object', 'properties': {'start': {'type': 'number'}, 'end': {'type': 'number'}, 'text': {'type': 'string', 'maxLength': 300}},
                       'required': ['start', 'end', 'text'], 'additionalProperties': False}}}, ['job_id', 'export_name', 'cues']),
+    'tutorial_speech_setup': ('First-use interview and speech check. Without answers: returns what speech resources this computer has and the questions to ask the user (what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have). With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing.', {
+        'answers': {'type': 'object', 'description': 'needs (text), quality (natural|plain-ok), allow_cloud (bool), allow_paid (bool), budget_usd (number), has (list), voice_notes (text).'}}, []),
     'tutorial_step': ('Perform ONE computer-use action through Hermes\'s native tool, with its approvals unchanged, while a take is recording. Mark the attempt on the media timeline and return a fresh capture for verification. A tool acknowledgment is not proof the intended UI result occurred. Use only for the user-authorized tutorial task and the selected app.', {
         'job_id': {'type': 'string'}, 'label': {'type': 'string', 'maxLength': 160},
         'action': {'type': 'object', 'description': 'Arguments for the existing computer_use tool; use its current schema and a freshly observed target.'},
@@ -48,11 +51,30 @@ def invoke(name, args, ctx=None, **kwargs):
     try:
         if name == 'capture_sources':
             result = sources(**args)
-            result['speech'] = {'selected_route': (lambda v: v if isinstance(v, str) and v else 'gemini')(ctx.get_config('narration_backend')), 'gemini': gemini_speech.availability(),
-                                'note': 'Choose a voice by name to fit the content (settings gemini_voice). One request per narration line; spend guard gemini_max_usd; no project value is shown.'}
+            cfg = {k: ctx.get_config(k) for k in ('narration_backend', 'speech_http_url', 'higgs_url', 'gemini_project', 'gemini_api_key', 'host_tts_tool', 'host_tts_backend_id', 'piper_model', 'speech_route')}
+            cfg['gemini_api_key'] = speech_resources.read_secret('GEMINI_API_KEY')
+            report = speech_resources.discover(cfg, secret_present=lambda n: bool(cfg.get('gemini_api_key')) if n == 'GEMINI_API_KEY' else False, hosted=('gemini',))
+            result['speech'] = {'selected_setting': cfg.get('narration_backend') or 'chosen', 'found': report['backends'], 'options': speech_resources.ready_options(report), 'advice': report['advice'],
+                                'gemini_voices': gemini_speech.availability(),
+                                'note': 'Narration is built from what this computer has: nothing is picked for the user: the plugin lists what it found and asks which route to use. Nothing was sent or spent by this check.'}
+        elif name == 'tutorial_speech_setup':
+            root = plugin_data_dir(STORAGE_NAMESPACE)
+            cfg = {k: ctx.get_config(k) for k in ('speech_http_url', 'higgs_url', 'gemini_project', 'host_tts_tool', 'host_tts_backend_id', 'piper_model')}
+            cfg['gemini_api_key'] = speech_resources.read_secret('GEMINI_API_KEY')
+            report = speech_resources.discover(cfg, secret_present=lambda n: bool(cfg['gemini_api_key']) if n == 'GEMINI_API_KEY' else False, hosted=('gemini',))
+            result = speech_resources.interview(cfg, root, report, args.get('answers'))
         elif name == 'tutorial_narrate':
-            keys = ('higgs_url', 'higgs_model', 'higgs_voice', 'higgs_revision', 'higgs_reference_audio', 'higgs_reference_text','narration_backend','host_tts_tool','host_tts_backend_id','host_tts_arguments','host_tts_model','host_tts_voice','host_tts_audio_field','host_tts_credit','host_tts_retry_nonce','speech_http_url','speech_http_model','speech_http_voice','speech_http_revision','speech_http_reference_audio','speech_http_reference_text','speech_http_credit','speech_http_fields','gemini_voice','gemini_model','gemini_max_usd','gemini_project')
+            keys = ('higgs_url', 'higgs_model', 'higgs_voice', 'higgs_revision', 'higgs_reference_audio', 'higgs_reference_text','narration_backend','host_tts_tool','host_tts_backend_id','host_tts_arguments','host_tts_model','host_tts_voice','host_tts_audio_field','host_tts_credit','host_tts_retry_nonce','speech_http_url','speech_http_model','speech_http_voice','speech_http_revision','speech_http_reference_audio','speech_http_reference_text','speech_http_credit','speech_http_fields','gemini_voice','gemini_model','gemini_max_usd','gemini_project','gemini_route','gemini_api_key','system_tool','system_voice','piper_model','speech_route')
             settings = {key: value for key in keys if (value := ctx.get_config(key)) is not None}
+            if speech_resources.read_secret('GEMINI_API_KEY'): settings['gemini_api_key'] = speech_resources.read_secret('GEMINI_API_KEY')
+            root_ = plugin_data_dir(STORAGE_NAMESPACE)
+            profile = speech_resources.load_profile(root_)
+            if (settings.get('narration_backend') or 'chosen') == 'chosen':
+                if profile is None or not profile.get('route'):
+                    cfg = dict(settings)
+                    return json.dumps({**speech_resources.interview(cfg, root_, speech_resources.discover(cfg, secret_present=lambda n: bool(cfg.get('gemini_api_key')) if n == 'GEMINI_API_KEY' else False, hosted=('gemini',))), 'next': 'Ask the user which speech route to use, save it with tutorial_speech_setup, then call tutorial_narrate again.'})
+                settings['speech_route'] = profile['route']
+            settings = speech_resources.apply_profile(settings, profile)
             forwarded={k:kwargs[k] for k in ('parent_agent','session_id','task_id') if k in kwargs}
             result = narrate(plugin_data_dir(STORAGE_NAMESPACE), **args, settings=settings,dispatch=lambda tool,arguments:ctx.dispatch_tool(tool,arguments,**forwarded))
         elif name == 'tutorial_step':

@@ -3,6 +3,16 @@ name: create-podcast
 description: Research and write a podcast from a topic, select compatible speech resources and assemble an episode with editorial review and optional music.
 ---
 
+## First use: ask the user which voice to use
+
+Never pick a speech engine for the user. Narration and audio rendering return the options found on this computer and the questions until the user has chosen a route. When that happens:
+
+1. Show the options in plain words: what each one is, whether the text stays on this computer or goes online, and whether it is free. Use the plugin's `recommendations` (remote order and a local model that fits this computer's hardware) and say they are suggestions, not a choice made for the user.
+2. Ask in one short message which one they want, plus: what they want to make, whether the voice must sound natural or a plain robotic voice is fine, whether sending text online is OK, whether paid use is OK and the most they want to spend per project, and what else they already have (a speech server, a Gemini key, a Cloud project, ElevenLabs or Inworld, a Hermes speech tool).
+3. Never ask for or accept a key in chat. Keys go in this plugin's Hermes settings.
+4. Save the answers with `podcast_speech_setup` (include `route`, the id of the option they picked). Read its `gaps` back to them and offer the real options. Do not state prices from memory; point to the provider's pricing page (see the speech wiki).
+5. Use only the route they chose, and report which route actually ran. If it stops working, say so and ask again; never switch silently.
+
 Read the [bundled wiki](../../llmwiki/index.md). Start from topic, audience, length and style. Use podcast_start_topic for a private working project. Research with available native search/browser tools or explicitly selected installed Camoufox via podcast_research_fetch. Camoufox uses a fresh anonymous browser; it reduces some browser friction but cannot guarantee access or facts. Add other legitimate sources with podcast_source_add; read source pages with podcast_source_read before writing.
 
 The active host researches, reasons and writes the dialogue; podcast_write_script saves sourced sections and an episode folder. Check sources and perform the existing script/lint/editorial preflight. Choose any authorized speech system that can supply actual audio; attach one normalized mono16-bit PCM WAV per turn with podcast_material_add, then podcast_assemble_project. Optional podcast_mix/mix_timeline add a selected music bed. Listen, review final timing, prepare captions/show notes and keep source credits. Audio generation is selected separately; project creation or self-attested review is not a produced episode.

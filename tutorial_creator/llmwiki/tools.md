@@ -52,9 +52,15 @@ Inputs: `job_id` (required), `export_name` (required), `seconds` (required).
 
 ## tutorial_narrate
 
-Generate timestamped narration and mix it into a completed export. Default route: Gemini 3.8 Flash TTS with a Google sign-in held by Hermes, one request per cue, a named voice (see capture_sources, speech section) and a spend guard; other routes are a configured local speech service or a host speech tool. Measures every clip, refuses overruns without speeding/cutting speech, caches unchanged cues, and writes segment captions plus the speech credit and usage. Does not start or install a model.
+Generate timestamped narration and mix it into a completed export. The route is the one the USER chose in the first-use interview (narration_backend chosen); the plugin never picks a voice engine itself. Until a route is chosen this returns interview_needed with the options found and the questions to ask (call tutorial_speech_setup with the answers, including route). The speech_route field of the result says which route really ran. One request per cue; a named voice for online routes.
 
-Inputs: `job_id` (required), `export_name` (required), `cues` (required).
+Inputs: `job_id` (required), `export_name` (required), `import_from_project` (optional), `cues` (required).
+
+## tutorial_speech_setup
+
+First-use interview and speech check. Without answers: returns what speech resources this computer has and the questions to ask the user (what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have). With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing.
+
+Inputs: `answers` (optional).
 
 ## tutorial_step
 

@@ -41,3 +41,5 @@ provider pricing, availability, licenses and schema details before relying on
 an old snapshot. Record task-specific additions in the user's private project
 notes rather than modifying the shipped package automatically. Never store API
 keys, private deployment/device/account identifiers or copyrighted source text.
+
+Speech choice: the user chooses the voice route; see the suite's [speech models wiki](../../llmwiki/speech-models.md) for online services (order, free allowances, sources and dates) and local models that fit the user's hardware.

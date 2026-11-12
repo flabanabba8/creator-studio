@@ -169,6 +169,10 @@
           },
           "allow_profile_media": {
             "type": "boolean"
+          },
+          "import_from_project": {
+            "type": "boolean",
+            "description": "Explicitly copy an asset from another project and record its origin."
           }
         },
         "required": [
@@ -181,7 +185,7 @@
     },
     {
       "name": "podcast_narrate",
-      "description": "Record the whole script with Gemini 3.8 Flash TTS (Vertex AI, set up on this computer; see gemini_speech from the start tool): one request per spoken turn (100 words or fewer), no rerolls, raw takes kept, normalized and attached to the right section in order. Pass voice for one host or voices {speaker: voice name} so different speakers get clearly different voices; the voice list says gender and trait. A 0.50 USD spend guard (max_usd) applies and usage is returned. The Google Cloud project is read from the machine configuration and never shown. Turns already recorded are skipped.",
+      "description": "The plugin never picks a voice engine itself. Until the user has chosen a route (podcast_speech_setup, which lists what this computer has and asks) this returns the options and questions instead of audio. engine chosen (default) uses exactly that route (an installed speech program with a different voice per speaker, or Gemini); system or gemini force one explicitly. Record the whole script with Gemini 3.8 Flash TTS (Vertex AI, set up on this computer; see gemini_speech from the start tool): one request per spoken turn (100 words or fewer), no rerolls, raw takes kept, normalized and attached to the right section in order. Pass voice for one host or voices {speaker: voice name} so different speakers get clearly different voices; the voice list says gender and trait. A 0.50 USD spend guard (max_usd) applies and usage is returned. The Google Cloud project is read from the machine configuration and never shown. Turns already recorded are skipped.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -190,6 +194,14 @@
           },
           "voice": {
             "type": "string"
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "chosen",
+              "system",
+              "gemini"
+            ]
           },
           "voices": {
             "type": "object",
@@ -246,7 +258,7 @@
     },
     {
       "name": "podcast_project_status",
-      "description": "Read actual project sources/script/materials and production state; creates no model request. Call it with no project_id to list the existing projects (ID, topic, phase) so earlier work can be found and continued.",
+      "description": "Read actual project sources/script/materials and production state; creates no model request. Call it with no project_id to list the existing projects (ID, topic, phase) so earlier work can be found and continued. The result includes a resume block (what is done, what is left, the one next call) and each listed project shows its next step: this is the path for a plain \"carry on\", which never redoes finished steps or pays for recorded speech twice.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -404,7 +416,7 @@
     },
     {
       "name": "podcast_mix_timeline",
-      "description": "Mix 1–20 explicitly selected music beds over non-overlapping narration intervals into a private WAV. Times are milliseconds; optional explicit fades, no playback or automatic ducking.",
+      "description": "Mix 1\u201320 explicitly selected music beds over non-overlapping narration intervals into a private WAV. Times are milliseconds; optional explicit fades, no playback or automatic ducking.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -464,6 +476,9 @@
           },
           "allow_profile_media": {
             "type": "boolean"
+          },
+          "import_from_project": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -502,6 +517,9 @@
           },
           "allow_profile_media": {
             "type": "boolean"
+          },
+          "import_from_project": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -531,6 +549,9 @@
                   "type": "number"
                 },
                 "text": {
+                  "type": "string"
+                },
+                "speaker": {
                   "type": "string"
                 }
               },
@@ -625,6 +646,41 @@
         "required": [
           "segments",
           "review"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcast_speech_setup",
+      "description": "First-use interview and speech check. Without answers: returns what speech resources this computer has (installed speech programs, speech servers that answer, Gemini set-up) and the questions to ask the user: what they want to make, natural vs plain voice, whether online and paid services are OK and a budget, what they already have. With answers: saves them and says which route narration will use and what is missing. Sends nothing, spends nothing. Narration returns the options and these questions until a route has been chosen.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "answers": {
+            "type": "object",
+            "description": "needs (text), quality (natural|plain-ok), allow_cloud (bool), allow_paid (bool), budget_usd (number), has (list of local_server, gemini_key, google_cloud_project, elevenlabs_key, inworld_key, host_speech_tool, nothing), voice_notes (text)."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcast_start_from_video",
+      "description": "Start a podcast project from a finished lesson video project: copies its saved source records (same source_ids and urls, marked as copied from the video) and its script notes. No web fetch, no model call; go straight to reading the sources locally and writing the script. For \"make a podcast episode from that lesson\".",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "video_project_id": {
+            "type": "string",
+            "description": "Full 32-character video project ID (youtube_project_status with no project_id lists them)."
+          },
+          "audience": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "video_project_id"
         ],
         "additionalProperties": false
       }

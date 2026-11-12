@@ -14,6 +14,8 @@ Make media with Hermes from one request: researched lesson videos, two-host podc
 - **Credits:** see [Credits and licences](#credits-and-licences). Licence: GPL-3.0-or-later.
 - **AI assistance:** written with AI coding assistants (Anthropic Claude and OpenAI Codex agents) under the maintainer's direction; what was actually tested is listed in [VERIFICATION.md](VERIFICATION.md).
 
+**0.4.0:** narration asks the user which voice to use and never picks one. The speech setup tools list what this computer has, read the hardware and suggest online services (Gemini 3.8 Flash TTS, Inworld, ElevenLabs, with dated free-allowance facts) and local models that fit; the saved choice is the only route used. New Gemini API-key route (no Cloud project needed) and `system` engine. See `llmwiki/speech-models.md` and VERIFICATION.md.
+
 ## What the suite does
 
 Creator Studio bundles four plugins that research, script, narrate, caption or record media. They keep their own tool names, rules and skills; installing one entry gives you all of them.

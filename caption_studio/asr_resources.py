@@ -320,6 +320,27 @@ def _owner_command(settings):
     return None
 
 
+def _owner_endpoint(settings):
+    """The HTTP recognizer the OWNER put in the plugin settings (asr_endpoint, with optional asr_fields, asr_auth_header, asr_auth_prefix, asr_allow_upload), as the recognizer dict the machinery runs, or None."""
+    from urllib.parse import urlsplit
+    s = settings or {}
+    endpoint = s.get('asr_endpoint')
+    if not isinstance(endpoint, str) or not endpoint.strip(): return None
+    host = urlsplit(endpoint).hostname or ''
+    loopback = host in ('localhost', '127.0.0.1', '::1')
+    fields = s.get('asr_fields') or {}
+    if isinstance(fields, str):
+        try: fields = json.loads(fields)
+        except ValueError: return None
+    if not isinstance(fields, dict): return None
+    rec = {'kind': 'http', 'endpoint': endpoint.strip(), 'language': s.get('asr_language', 'en'), 'fields': fields,
+           'allow_upload': str(s.get('asr_allow_upload', 'false')).lower() == 'true',
+           'use_api_key': (not loopback) or bool(s.get('asr_auth_header'))}
+    if s.get('asr_auth_header'): rec['auth_header'] = s['asr_auth_header']
+    if 'asr_auth_prefix' in s: rec['auth_prefix'] = s['asr_auth_prefix']
+    return rec
+
+
 TTS_MODEL = re.compile(r'(?i)tts|text-to-speech|kokoro|piper|orpheus|higgs|xtts|bark|vits|voxcpm|cosyvoice|f5-|chatterbox|zonos|outetts|maya1|soprano|dia-')
 
 
@@ -337,6 +358,14 @@ def discover(settings=None, secret_present=None, which=shutil.which, probe=True,
     if argv:
         routes.append({'id': 'configured:command', 'kind': 'command', 'ready': True, 'free': True, 'local': True, 'detail': 'the local recognizer command you set in the plugin settings (asr_command); it runs on this computer with a clean environment',
                        'recognizer': {'kind': 'command', 'argv': argv, 'model': str(s.get('asr_model', '')), 'language': str(s.get('asr_language', 'en')), 'output': str(s.get('asr_command_output', 'stdout'))}})
+    endpoint = _owner_endpoint(s)
+    if endpoint:
+        from urllib.parse import urlsplit
+        local = (urlsplit(endpoint['endpoint']).hostname or '') in ('localhost', '127.0.0.1', '::1')
+        usable = local or endpoint['allow_upload']
+        routes.append({'id': 'configured:endpoint', 'kind': 'endpoint', 'ready': usable, 'free': None, 'local': local, 'recognizer': endpoint,
+                       'detail': ('the speech endpoint you set in the plugin settings (asr_endpoint)' + ('; it is on this computer' if local else '; audio is uploaded to it') +
+                                  ('' if usable else '; the setting asr_allow_upload is not true, so it will not be used'))})
     for server in [x for x in find_transcription_servers([s.get('asr_server_url', '')], probe) if not _only_speech_synthesis(x.get('models'))]:
         routes.append({'id': 'server:' + server['url'], 'kind': 'server', 'ready': True, 'free': True, 'local': True, 'models': server['models'], 'detail': 'a server on this computer that answered; used through its OpenAI-style /v1/audio/transcriptions if it has one'})
     for cmd in local_commands:
@@ -397,7 +426,7 @@ def recognizer_for(route, settings=None):
         model = (route.get('models') or [s.get('asr_model', 'whisper-1')])[0]
         return {'kind': 'http', 'endpoint': route['id'].split(':', 1)[1] + '/v1/audio/transcriptions', 'language': s.get('language', 'en'),
                 'fields': {'model': model, 'response_format': 'verbose_json', 'timestamp_granularities[]': 'word'}}
-    if kind == 'command':
+    if kind in ('command', 'endpoint'):
         return dict(route['recognizer'])
     if kind == 'remote' and route.get('service') in CALLABLE_REMOTE:
         c = CALLABLE_REMOTE[route['service']]
@@ -457,7 +486,7 @@ QUESTIONS = [
 ]
 
 
-def save_profile(root, answers, route_ids=None):
+def save_profile(root, answers, route_ids=None, local_ids=()):
     if not isinstance(answers, dict):
         raise ValueError('answers must be an object with the interview keys')
     out = {'answered': True}
@@ -490,7 +519,7 @@ def save_profile(root, answers, route_ids=None):
             raise ValueError('route must be the id of one of the options you were shown')
         if route_ids is not None and route not in route_ids:
             raise ValueError('route "%s" is not one of the available options: %s' % (route, ', '.join(sorted(route_ids)) or 'none'))
-        if route and not out['allow_upload'] and not (route == 'import' or route.startswith('server:') or route.startswith('command:') or route == 'configured:command'):
+        if route and not out['allow_upload'] and not (route == 'import' or route.startswith('server:') or route.startswith('command:') or route == 'configured:command' or route in local_ids):
             raise ValueError('You said audio must not be uploaded, so choose a route that stays on this computer')
     out['route'] = route or None
     path = profile_path(root)
@@ -521,7 +550,7 @@ def apply_profile(settings, profile):
 
 def gaps(report, profile):
     notes = []
-    word_ok = [r for r in report['routes'] if r['ready'] and r['kind'] in ('server', 'command', 'remote')]
+    word_ok = [r for r in report['routes'] if r['ready'] and r['kind'] in ('server', 'command', 'remote', 'endpoint')]
     if not word_ok:
         notes.append('No route that can transcribe here is ready, only import. ' + report['advice'])
     if profile['speakers']:
@@ -538,7 +567,7 @@ def interview(settings, root, report, answers=None, hw=None):
     if answers is not None:
         if options and not (isinstance(answers, dict) and answers.get('route')):
             raise ValueError('Ask the user which of these routes to use and pass it as route (nothing was saved): ' + ', '.join(o['id'] for o in options))
-        profile = save_profile(root, answers, {o['id'] for o in options})
+        profile = save_profile(root, answers, {o['id'] for o in options}, {r['id'] for r in report['routes'] if r.get('local')})
         return {'state': 'saved', 'profile': profile, 'you_chose': profile['route'], 'gaps': gaps(report, profile), 'found': report['routes']}
     existing = load_profile(root)
     cat = load_catalog(update_root=root)

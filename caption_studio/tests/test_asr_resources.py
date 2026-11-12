@@ -186,6 +186,31 @@ class WrongKindOfServer(unittest.TestCase):
             ids = [r['id'] for r in A.discover({}, secret_present=lambda n: False, which=lambda n: None, probe=True)['routes']]
         self.assertNotIn('server:http://127.0.0.1:8000', ids); self.assertIn('server:http://127.0.0.1:8080', ids)
 
+class OwnerEndpointRoute(unittest.TestCase):
+    def test_the_owners_endpoint_is_a_route_the_user_can_choose(self):
+        """Found through Hermes: an asr_endpoint set by the owner was accepted by captions_generate but never offered in the interview."""
+        report = found(settings={'asr_endpoint': 'http://127.0.0.1:9/transcribe', 'asr_fields': '{"model": "small"}'})
+        route = next(r for r in report['routes'] if r['id'] == 'configured:endpoint')
+        self.assertEqual((route['kind'], route['ready'], route['local']), ('endpoint', True, True))
+        rec = A.recognizer_for(route, {})
+        self.assertEqual((rec['kind'], rec['endpoint'], rec['fields'], rec['use_api_key']), ('http', 'http://127.0.0.1:9/transcribe', {'model': 'small'}, False))
+
+    def test_a_remote_endpoint_needs_the_owners_upload_consent_and_a_key(self):
+        off = next(r for r in found(settings={'asr_endpoint': 'https://asr.example.org/v1'})['routes'] if r['id'] == 'configured:endpoint')
+        self.assertFalse(off['ready']); self.assertFalse(off['local'])
+        on = next(r for r in found(settings={'asr_endpoint': 'https://asr.example.org/v1', 'asr_allow_upload': 'true'})['routes'] if r['id'] == 'configured:endpoint')
+        self.assertTrue(on['ready']); self.assertTrue(A.recognizer_for(on, {})['use_api_key'])
+
+    def test_a_local_endpoint_can_be_saved_while_uploads_are_off(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = found(settings={'asr_endpoint': 'http://127.0.0.1:9/transcribe'})
+            saved = A.apply_setup(Path(tmp), report, {'asr_endpoint': 'http://127.0.0.1:9/transcribe'}, {**ANSWERS, 'allow_upload': False, 'route': 'configured:endpoint'})
+            self.assertEqual(saved['you_chose'], 'configured:endpoint')
+
+    def test_no_endpoint_no_route(self):
+        self.assertFalse([r for r in found(settings={})['routes'] if r['id'] == 'configured:endpoint'])
+
+
 class OwnerCommandRoute(unittest.TestCase):
     CMD = '["/usr/bin/python3", "/opt/recognize.py"]'
 

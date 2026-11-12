@@ -117,13 +117,8 @@ def configured_recognizer(settings):
     argv = _json_setting(settings, 'asr_command', list)
     if argv:
         return {'kind': 'command', 'argv': argv, 'model': settings.get('asr_model', ''), 'language': settings.get('asr_language', 'en'), 'output': settings.get('asr_command_output', 'stdout')}
-    endpoint = settings.get('asr_endpoint')
-    if endpoint:
-        rec = {'kind': 'http', 'endpoint': endpoint, 'language': settings.get('asr_language', 'en'), 'fields': _json_setting(settings, 'asr_fields', dict) or {},
-               'allow_upload': str(settings.get('asr_allow_upload', 'false')).lower() == 'true', 'use_api_key': True}
-        if settings.get('asr_auth_header'): rec['auth_header'] = settings['asr_auth_header']
-        if 'asr_auth_prefix' in settings: rec['auth_prefix'] = settings['asr_auth_prefix']
-        return rec
+    rec = A._owner_endpoint(settings)
+    if rec: return rec
     raise ValueError('No recognizer is configured. The owner sets asr_command (a JSON array of arguments) or asr_endpoint in the plugin settings; the model cannot choose one.')
 
 

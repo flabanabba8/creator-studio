@@ -67,6 +67,28 @@ class Subprocesses(unittest.TestCase):
         self.assertEqual(missing, [])
 
 
+class OwnerSettingsReachEveryTool(unittest.TestCase):
+    def test_research_tools_of_both_parts_read_the_owners_camoufox_setting(self):
+        """Found by running the plugin through Hermes: the YouTube project tools were registered without the plugin context, so the owner's settings never reached them."""
+        import json
+        class Reader(Ctx):
+            def __init__(self): super().__init__(); self.handlers = {}; self.asked = []
+            def register_tool(self, name, **kw): self.schemas[name] = kw['schema']; self.handlers[name] = kw['handler']
+            def get_config(self, key, default=None): self.asked.append(key); return default
+        ctx = Reader(); suite.register(ctx)
+        for name in ('youtube_research_fetch', 'podcast_research_fetch'):
+            ctx.asked.clear()
+            json.loads(ctx.handlers[name]({'project_id': 'x' * 32, 'url': 'https://example.com/'}))
+            self.assertIn('camoufox_python', ctx.asked, name)
+
+
+    def test_the_browser_reader_runs_isolated_so_the_local_camoufox_module_cannot_shadow_the_real_package(self):
+        """Found through Hermes: common/camoufox.py shadowed the installed camoufox package whenever the reader script was started from common/."""
+        for part in ('youtube_studio', 'podcast_studio'):
+            text = (ROOT / part / 'media_project.py').read_text()
+            self.assertIn("'-I',str(Path(__file__).resolve().parent.parent/'common'/'browser_research.py')", text, part)
+
+
 class Release(unittest.TestCase):
     def test_no_compiled_binaries_or_bytecode_are_shipped(self):
         magic = (b'\x7fELF', b'MZ', b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\x00asm')

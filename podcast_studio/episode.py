@@ -14,13 +14,18 @@ MAX_FILES = 100
 MAX_FILE_BYTES = 256 * 1024
 CLOSING = re.compile(r'(?:^|-)(?:wrap-?up|outro|closing|credits)(?:$|-)', re.I)
 LINE = re.compile(r'^([A-Z][A-Z0-9_ ]{0,39}):\s*(.*)$')
+OWN_ROOT = None   # set by the plugin to its own data folder
 PRIVATE_PARTS = {'.ssh', '.gnupg', '.aws', '.kube', '.docker', '.codex', '.hermes', '.claude', '.netrc', '.git'}
 
 
 def episode_files(directory):
     root = Path(directory)
     if not root.is_absolute(): raise ValueError('Use an absolute episode folder path')
-    if any(part in PRIVATE_PARTS for part in root.resolve().parts): raise ValueError('Private configuration folders cannot be read as episodes')
+    resolved = root.resolve()
+    own = OWN_ROOT.resolve() if OWN_ROOT is not None else None
+    # The plugin's own data folder lives under the Hermes home (.hermes); episodes it wrote itself are fine to check, but nothing else under a private folder is.
+    relative = resolved.relative_to(own).parts if own is not None and (resolved == own or own in resolved.parents) else resolved.parts
+    if any(part in PRIVATE_PARTS for part in relative): raise ValueError('Private configuration folders cannot be read as episodes')
     if root.is_symlink() or not root.is_dir(): raise ValueError('Episode folder must be a real directory')
     files = sorted(p for p in root.iterdir() if p.suffix == '.txt')
     if not 1 <= len(files) <= MAX_FILES: raise ValueError(f'Episode folder needs 1 to {MAX_FILES} .txt segment files')

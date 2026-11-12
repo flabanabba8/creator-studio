@@ -56,7 +56,7 @@ def render_still(root, image_path, audio_path, duration, chapters, captions, all
             with os.fdopen(os.open(vtt, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w', encoding='utf-8') as stream:
                 stream.write(timeline['captions_webvtt'])
             os.close(os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
-            command = [ffmpeg, '-v', 'error', '-nostdin', '-loop', '1', '-framerate', '10', '-protocol_whitelist', 'file,pipe', '-i', str(image), '-ss', str(audio_start), '-protocol_whitelist', 'file,pipe', '-i', str(audio)]
+            command = [ffmpeg, '-v', 'error', '-nostdin', '-loop', '1', '-framerate', '25', '-protocol_whitelist', 'file,pipe', '-i', str(image), '-ss', str(audio_start), '-protocol_whitelist', 'file,pipe', '-i', str(audio)]
             if captions: command += ['-protocol_whitelist', 'file,pipe', '-i', str(vtt)]
             command += ['-map', '0:v:0', '-map', '1:a:0']
             if captions: command += ['-map', '2:0', '-c:s', 'mov_text']
@@ -133,7 +133,7 @@ def render_clips(root, clips, audio_path, chapters, captions, allow_profile_medi
             for path in selected: command += ['-protocol_whitelist', 'file,pipe', '-i', str(path)]
             command += ['-ss', str(audio_start), '-protocol_whitelist', 'file,pipe', '-i', str(audio)]
             if captions: command += ['-protocol_whitelist', 'file,pipe', '-i', str(vtt)]
-            filters = [f'[{i}:v:0]trim=start={starts[i]:.6f}:duration={seconds:.6f},setpts=PTS-STARTPTS,scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=10[v{i}]' for i, seconds in enumerate(durations)]
+            filters = [f'[{i}:v:0]trim=start={starts[i]:.6f}:duration={seconds:.6f},setpts=PTS-STARTPTS,scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=25[v{i}]' for i, seconds in enumerate(durations)]
             filters.append(''.join(f'[v{i}]' for i in range(len(selected))) + f'concat=n={len(selected)}:v=1:a=0[outv]')
             command += ['-filter_complex', ';'.join(filters), '-map', '[outv]', '-map', f'{len(selected)}:a:0']
             if captions: command += ['-map', f'{len(selected)+1}:0', '-c:s', 'mov_text']

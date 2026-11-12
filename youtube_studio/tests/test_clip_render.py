@@ -94,3 +94,22 @@ class ClipRender(unittest.TestCase):
    self.assertAlmostEqual(result['duration_seconds'],2,delta=.5);self.assertEqual(result['audio_start_seconds'],2997)
 
 if __name__=='__main__':unittest.main()
+
+
+@unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'ffmpeg and ffprobe required')
+class SegmentsFromDifferentToolsJoin(unittest.TestCase):
+ def test_still_clips_and_slides_segments_can_be_stitched_together(self):
+  """Found through Hermes: the slideshow was 25 fps while still and clip segments were 10 fps, so stitching mixed segments failed."""
+  from cs_t.clips_fixture.render import render_still
+  from cs_t.clips_fixture.slides import render_slides
+  with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
+   base=Path(tmp);root=base/'store';root.mkdir(mode=0o700);audio=root/'a.wav';image=root/'i.png';clip=root/'c.mp4'
+   run=lambda *a:subprocess.run(['ffmpeg','-v','error','-y',*a],check=True,capture_output=True,timeout=60)
+   run('-f','lavfi','-i','sine=f=300:d=6','-ar','24000','-ac','1',str(audio))
+   run('-f','lavfi','-i','color=c=blue:s=320x180','-frames:v','1',str(image))
+   run('-f','lavfi','-i','color=c=red:s=320x180:r=5:d=4','-c:v','libx264','-preset','ultrafast',str(clip))
+   still=render_still(root,str(image),str(audio),2,[],[])['segment_id']
+   slides=render_slides(root,[{'path':str(image),'seconds':2}],str(audio),[],[])['segment_id']
+   clips=render_clips(root,[{'path':str(clip),'seconds':2}],str(audio),[],[])['segment_id']
+   result=stitch_segments(root,[still,slides,clips],str(audio))
+   self.assertTrue(Path(result['output_path']).is_file())

@@ -231,6 +231,9 @@ def invoke(name, args, ctx=None):
         from .media_project import MediaProject, schemas
         MediaProject.settings = camoufox_settings(ctx)
         project_tools=schemas('podcast')
+        from plugins.plugin_storage import plugin_data_dir as _own
+        from . import episode as _episode
+        _episode.OWN_ROOT = _own(STORAGE_NAMESPACE)
         if name in project_tools:
             from plugins.plugin_storage import plugin_data_dir
             project=MediaProject(plugin_data_dir(STORAGE_NAMESPACE),'podcast')

@@ -94,7 +94,7 @@ class MediaProject:
         request={'url':url,'browser_executable':browser_executable,'timeout_seconds':timeout_seconds};output=p/(uuid.uuid4().hex+'-fetch.json');diagnostic=output.with_suffix('.stderr.log')
         with output.open('wb')as out,diagnostic.open('wb')as err:
             output.chmod(0o600);diagnostic.chmod(0o600)
-            process=subprocess.Popen([str(exe),str(Path(__file__).resolve().parent.parent/'common'/'browser_research.py')],stdin=subprocess.PIPE,stdout=out,stderr=err,env=environment(),start_new_session=os.name!='nt')
+            process=subprocess.Popen([str(exe),'-I',str(Path(__file__).resolve().parent.parent/'common'/'browser_research.py')],stdin=subprocess.PIPE,stdout=out,stderr=err,env=environment(),start_new_session=os.name!='nt')
             try:process.communicate(json.dumps(request).encode(),timeout=timeout_seconds+25)
             except subprocess.TimeoutExpired:
                 if os.name!='nt':os.killpg(process.pid,signal.SIGKILL)

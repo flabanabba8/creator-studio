@@ -359,6 +359,90 @@
         ],
         "additionalProperties": false
       }
+    },
+    {
+      "name": "captions_recognizer_setup",
+      "description": "First-use interview and recognizer check. Without answers: returns the speech recognizers this computer can use (a local speech server, cached Whisper models, installed programs, online services with a key), suggestions (local models that fit this computer, online services with free allowance, price, timestamp support and data-use terms, and which of the user's paid plans include API access), whether the built-in knowledge looks out of date (offering online research only if the user says yes), and the questions to ask. With answers: saves them, including the route the user picked. The plugin never picks a recognizer for the user. Uploads nothing, installs nothing, starts no model. captions_generate, captions_analyse_audio and captions_for_latest return the interview until it is answered; pass recognizer {\"kind\": \"chosen\"} to use the route the user picked.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "answers": {
+            "type": "object",
+            "description": "languages (text), minutes (number), allow_upload (bool), priority (accurate timing|speed|lowest cost), speakers (bool), subscriptions (list: chatgpt-pro-business, claude-max-team, google-ai-pro, huggingface-pro, none), has (text), route (the id of the option the user picked)."
+          },
+          "knowledge_updates": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object"
+            },
+            "description": "Only after the user said yes to online research: facts you verified on primary pages. Each item: id (from the speech-recognition wiki tables), field, value, source (https page), date (the day you read it). Saved as dated overrides; the shipped catalog is unchanged."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "captions_for_latest",
+      "description": "Caption what this suite just made without naming files: finds the newest finished video, podcast episode or tutorial (kind = video, podcast, tutorial or any) in the suite's own project data. If it has captions from its own script (podcasts and narrated tutorials do; videos get them from the script timing) they are returned first, with the media path, and no recognition runs. Pass recognize=true with a recognizer (see captions_recognizer_options) to start recognition on the media instead, which is the route for media without a script. Starts the same review job as captions_generate; finish it with captions_audio_export. No burned-in copy is made.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "any",
+              "video",
+              "podcast",
+              "tutorial"
+            ]
+          },
+          "recognize": {
+            "type": "boolean",
+            "description": "Run speech recognition on the media even if script captions exist (needs recognizer)."
+          },
+          "recognizer": {
+            "type": "object",
+            "description": "kind=command (argv with {audio}/{output}/{model}/{language}, output stdout/file), import (transcript_path), http (endpoint, form fields, allow_upload), or host (tool, arguments). API keys belong only in Hermes settings."
+          },
+          "decoder_argv": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional selected decoder argv producing mono 16kHz PCM WAV using {media}/{audio}; default uses installed FFmpeg."
+          },
+          "caption_options": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "line_chars": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 80
+              },
+              "max_lines": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3
+              },
+              "max_duration_ms": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 15000
+              },
+              "max_gap_ms": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 5000
+              }
+            }
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
     }
   ]
 }

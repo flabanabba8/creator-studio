@@ -244,8 +244,9 @@ class Staleness(unittest.TestCase):
         self.assertIn('ASK whether', f['offer']); self.assertIn('Do not research without their yes', f['offer'])
 
     def test_a_passed_deadline_makes_it_stale_even_when_recently_checked(self):
-        f = sr.freshness('2027-01-02', self.EXP, None, self.day(2027, 1, 3))
-        self.assertTrue(f['stale']); self.assertIn('deadline has passed', f['reasons'][0])
+        f = sr.freshness('2026-12-30', self.EXP, None, self.day(2027, 1, 3))
+        self.assertTrue(f['stale']); self.assertTrue(any('deadline has passed' in r for r in f['reasons']))
+        self.assertFalse(sr.freshness('2027-01-02', self.EXP, None, self.day(2027, 1, 3))['stale'])   # checked after the deadline: already reflected
 
     def test_an_approaching_deadline_is_flagged_but_not_stale(self):
         f = sr.freshness('2026-12-20', self.EXP, None, self.day(2026, 12, 25))

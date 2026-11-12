@@ -28,6 +28,12 @@ Inputs: `languages` (optional), `subscriptions` (optional), `offline` (optional)
 
 The result includes `local_speech_resources`: cached Hugging Face speech models, Python environments (PATH and virtual environments up to four folders under the home folder) that have torch/transformers/faster-whisper, and `ready_local_commands`, complete `recognizer` objects for the bundled Transformers adapter. The scan is read-only and bounded; it checks module presence and versions only.
 
+## captions_recognizer_setup
+
+First-use interview and recognizer check. Without answers: returns the speech recognizers this computer can use (a local speech server, cached Whisper models, installed programs, online services with a key), suggestions (local models that fit this computer, online services with free allowance, price, timestamp support and data-use terms, and which of the user's paid plans include API access), whether the built-in knowledge looks out of date (offering online research only if the user says yes), and the questions to ask. With answers: saves them, including the route the user picked. The plugin never picks a recognizer for the user. Uploads nothing, installs nothing, starts no model. captions_generate, captions_analyse_audio and captions_for_latest return the interview until it is answered; pass recognizer {"kind": "chosen"} to use the route the user picked.
+
+Inputs: `answers` (optional), `knowledge_updates` (optional).
+
 ## captions_analyse_audio
 
 Compare selected audio/video with an SRT using the user-selected recognizer or imported word-timestamp JSON. Starts a local review job; no automatic edits. Local commands are trusted user-selected programs. Remote upload requires explicit consent. No default model/provider, downloads or fallback.

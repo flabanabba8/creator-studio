@@ -17,7 +17,7 @@ rules. Tool names start with `youtube_`, `podcast_`, `captions_`, or `capture_`/
 | Caption Studio | Captions for a recording, and repair of existing subtitles | `repair-captions` | [index](../caption_studio/llmwiki/index.md), [task guide](../caption_studio/llmwiki/task-guide.md) |
 | Tutorial Creator | Record a selected X11 window and export a narrated tutorial under 90 seconds | `create-tutorial` | [index](../tutorial_creator/llmwiki/index.md), [task guide](../tutorial_creator/llmwiki/task-guide.md) |
 
-- [Tool reference for all 67 tools](tools.md)
+- [Tool reference for all 68 tools](tools.md)
 - [Speech models: online services, free allowances, local models by hardware](speech-models.md) - read before suggesting a voice; figures are dated and must be re-checked before quoting
 - [Suite README](../README.md), [manifest](../plugin.yaml), [verification](../VERIFICATION.md)
 
@@ -30,3 +30,4 @@ rules. Tool names start with `youtube_`, `podcast_`, `captions_`, or `capture_`/
 - Each part stores its files in its own folder under the Hermes `plugin-data` directory:
   `creator-studio-youtube`, `creator-studio-podcast`, `creator-studio-captions`, `creator-studio-tutorial`.
 - The per-part wikis are the original ones; where they say "this plugin" they mean that part.
+- [Speech recognition for captions: local models, online services, subscriptions](../caption_studio/llmwiki/recognizer-models.md) - dated, source-linked; read before suggesting a recognizer

@@ -47,3 +47,5 @@ provider pricing, availability, licenses and schema details before relying on
 an old snapshot. Record task-specific additions in the user's private project
 notes rather than modifying the shipped package automatically. Never store API
 keys, private deployment/device/account identifiers or copyrighted source text.
+
+- [Speech recognition for captions: local models, online services, subscriptions](recognizer-models.md) - dated, source-linked; read before suggesting a recognizer

@@ -76,6 +76,7 @@ provides_tools:
   - captions_retime
   - captions_suggest_alignment
   - captions_recognizer_options
+  - captions_recognizer_setup
   - captions_analyse_audio
   - captions_audio_status
   - captions_audio_review

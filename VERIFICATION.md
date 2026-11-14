@@ -1,5 +1,10 @@
 # Verification of Creator Studio 0.5.0
 
+## 0.5.1 - recognizer device choice (2026-11-13)
+
+- Caption Studio's setup scan never passed the graphics cards it found to the device choice, so every scanned local Whisper route was set to CPU even with a free card. It now does, and each scanned route says why it was given the GPU or the CPU. The bundled Transformers adapter, when run as an owner-set command with no device named, uses the graphics card when it has at least 5 GiB free and the CPU otherwise.
+- Checked: the 84 Caption Studio tests pass; on this computer (24 GiB card, 21 GiB free) the scan now lists the cached Whisper routes with device cuda. See the release notes below for the rest.
+
 ## 0.5.0 - Clip Studio (2026-11-13)
 
 ### Added before release (2026-11-13): 17 Clip Studio tools, 85 in the suite

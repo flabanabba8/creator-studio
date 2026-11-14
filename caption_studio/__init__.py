@@ -123,10 +123,10 @@ def configured_recognizer(settings):
 
 
 def _asr_report(ctx=None):
-    from .recognizers import local_speech_resources
+    from .recognizers import local_speech_resources, nvidia_gpus
     settings = owner_settings(ctx)
     try:
-        commands = local_speech_resources(extra_pythons=[settings.get('asr_python')]).get('ready_local_commands', [])
+        commands = local_speech_resources(gpus=nvidia_gpus(), extra_pythons=[settings.get('asr_python')]).get('ready_local_commands', [])
     except Exception:
         commands = []
     return A.discover(settings, local_commands=commands)

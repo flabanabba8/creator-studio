@@ -369,7 +369,7 @@ def discover(settings=None, secret_present=None, which=shutil.which, probe=True,
     for server in [x for x in find_transcription_servers([s.get('asr_server_url', '')], probe) if not _only_speech_synthesis(x.get('models'))]:
         routes.append({'id': 'server:' + server['url'], 'kind': 'server', 'ready': True, 'free': True, 'local': True, 'models': server['models'], 'detail': 'a server on this computer that answered; used through its OpenAI-style /v1/audio/transcriptions if it has one'})
     for cmd in local_commands:
-        routes.append({'id': 'command:%s' % cmd['recognizer'].get('model', 'transformers'), 'kind': 'command', 'ready': True, 'free': True, 'local': True, 'recognizer': cmd['recognizer'], 'detail': 'a local Whisper model already cached on this computer, run by the bundled adapter'})
+        routes.append({'id': 'command:%s' % cmd['recognizer'].get('model', 'transformers'), 'kind': 'command', 'ready': True, 'free': True, 'local': True, 'recognizer': cmd['recognizer'], 'detail': 'a local Whisper model already cached on this computer, run by the bundled adapter' + ('. ' + cmd['device_reason'] if cmd.get('device_reason') else '')})
     for tool in PATH_TOOLS:
         path = which(tool)
         if path:

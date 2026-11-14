@@ -22,7 +22,13 @@ def main():
     selected=request.get('options',{})
     # Offline environment is set before importing Transformers. Passing
     # local_files_only through pipeline() leaks into generate() in some versions.
-    device=selected.get('device','cpu')
+    device=selected.get('device','auto')
+    if device=='auto':  # no device named (an owner-set command): the graphics card when it has room, else the CPU
+        device='cpu'
+        try:
+            import torch
+            if torch.cuda.is_available() and torch.cuda.mem_get_info()[0]>=5000*2**20: device='cuda'
+        except Exception: pass
     extra={'device':device}
     if str(device).startswith('cuda'):
         import torch

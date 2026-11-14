@@ -61,6 +61,16 @@ def python_runtimes(limit=12,extra=()):
         if modules and any(modules.values()): runtimes.append({'python':shown,'modules':modules,'runs_transformers_adapter':bool(modules.get('torch') and modules.get('transformers'))})
     return runtimes
 
+def nvidia_gpus():
+    """NVIDIA graphics cards with their total and free memory (MiB), read once with nvidia-smi; empty when there is none."""
+    gpu=[]
+    if shutil.which('nvidia-smi'):
+        try:
+            r=subprocess.run(['nvidia-smi','--query-gpu=name,memory.total,memory.free','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=3,env=process_env())
+            if r.returncode==0: gpu=[{'name':f[0],'memory_mib':int(f[1]),'free_mib':int(f[2])} for f in ([x.strip() for x in s.rsplit(',',2)] for s in r.stdout.splitlines() if s.count(',')>=2)]
+        except (OSError,ValueError,subprocess.TimeoutExpired): pass
+    return gpu
+
 def choose_device(versions,gpus,need_mib=5000):
     """cuda when a CUDA torch build and a GPU with enough free memory exist, else cpu (a large model on CPU can use 6+ GiB of RAM)."""
     if '+cpu' in versions.get('torch',''):return 'cpu'
@@ -98,12 +108,7 @@ def options(languages=None, subscriptions=None, offline=True):
     ram=None
     try: ram=round(os.sysconf('SC_PAGE_SIZE')*os.sysconf('SC_PHYS_PAGES')/1024**3,1)
     except (ValueError,OSError,AttributeError): pass
-    gpu=[]
-    if shutil.which('nvidia-smi'):
-        try:
-            r=subprocess.run(['nvidia-smi','--query-gpu=name,memory.total,memory.free','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=3,env=process_env())
-            if r.returncode==0: gpu=[{'name':f[0],'memory_mib':int(f[1]),'free_mib':int(f[2])} for f in ([x.strip() for x in s.rsplit(',',2)] for s in r.stdout.splitlines() if s.count(',')>=2)]
-        except (OSError,ValueError,subprocess.TimeoutExpired): pass
+    gpu=nvidia_gpus()
     choices=[{'id':'import','cost':'No service fee','description':'Import word-timestamp JSON from a recognizer you already use; no inference or upload here.','requirements':['Word timestamps, not plain text or segment-only captions']}]
     local_modules={}
     for name in ['faster_whisper','transformers','torch']:

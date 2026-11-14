@@ -66,6 +66,13 @@ def choose_device(versions,gpus,need_mib=5000):
     if '+cpu' in versions.get('torch',''):return 'cpu'
     return 'cuda' if any(g.get('free_mib',0)>=need_mib for g in gpus) else 'cpu'
 
+def device_reason(versions,gpus,need_mib=5000):
+    """Why choose_device picked what it did, in words for the user: a CPU pick on a machine with a GPU is never silent."""
+    if choose_device(versions,gpus,need_mib)=='cuda':return 'GPU: a graphics card with at least %d MiB free was seen.'%need_mib
+    if '+cpu' in versions.get('torch',''):return 'CPU: this Python has a CPU-only torch build.'
+    if not gpus:return 'CPU: no NVIDIA graphics card was seen.'
+    return 'CPU, although a graphics card is present: its free memory (%d MiB) is under the %d MiB this needs, so another program is using it. Recognition will be much slower; tell the user, who may close that program and run the setup scan again.'%(max(g.get('free_mib',0) for g in gpus),need_mib)
+
 def local_speech_resources(gpus=(),extra_pythons=()):
     models=cached_speech_models();runtimes=python_runtimes(extra=extra_pythons)
     adapter=Path(__file__).parent/'examples/transformers_asr.py'
@@ -80,7 +87,7 @@ def local_speech_resources(gpus=(),extra_pythons=()):
     for model in models:
         if not model['transformers_whisper_adapter']: continue
         for runtime in usable[:3]:
-            ready.append({'recognizer':{'kind':'command','argv':[runtime['python'],str(adapter)],'model':model['model'],'language':'en','output':'stdout','options':{'device':choose_device(runtime['versions'],gpus)}},'versions':runtime['versions'],'note':'Cached model plus a Python that imports torch and transformers; word timestamps via the bundled adapter. Offline only; nothing is run until you start a recognition. The first entry is the preferred environment (a CPU-only torch build is listed last). The device is cuda only when a CUDA torch build and a GPU with enough free memory were seen, otherwise cpu (a large model on CPU can need 6+ GiB of RAM). Run one recognition at a time.'})
+            ready.append({'recognizer':{'kind':'command','argv':[runtime['python'],str(adapter)],'model':model['model'],'language':'en','output':'stdout','options':{'device':choose_device(runtime['versions'],gpus)}},'versions':runtime['versions'],'device_reason':device_reason(runtime['versions'],gpus),'note':'Cached model plus a Python that imports torch and transformers; word timestamps via the bundled adapter. Offline only; nothing is run until you start a recognition. The first entry is the preferred environment (a CPU-only torch build is listed last). The device is cuda only when a CUDA torch build and a GPU with enough free memory were seen, otherwise cpu (a large model on CPU can need 6+ GiB of RAM). Run one recognition at a time.'})
     return {'cached_speech_models':models,'python_runtimes_with_speech_modules':runtimes,'ready_local_commands':ready,'scan_notice':'Read-only, bounded scan of standard Hugging Face cache folders, PATH pythons and virtual environments up to four folders deep under the home folder. Only module presence and library versions are checked; no model is loaded or downloaded.'}
 
 def options(languages=None, subscriptions=None, offline=True):

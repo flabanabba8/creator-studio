@@ -51,7 +51,7 @@ class RegisterTests(unittest.TestCase):
 
     def test_tools_match_manifest_exactly(self):
         declared = manifest_tools()
-        self.assertEqual(len(declared), 68)
+        self.assertEqual(len(declared), 85)
         self.assertEqual(len(set(self.ctx.tools)), len(self.ctx.tools), 'a tool name was registered twice')
         self.assertEqual(sorted(self.ctx.tools), sorted(declared))
 
@@ -62,8 +62,8 @@ class RegisterTests(unittest.TestCase):
         for key in ('provides_hooks', 'provides_middleware', 'provides_commands'):
             self.assertNotIn(key, text)
 
-    def test_four_skills_registered_with_files(self):
-        self.assertEqual(sorted(self.ctx.skills), ['create-podcast', 'create-tutorial', 'create-youtube-video', 'repair-captions'])
+    def test_five_skills_registered_with_files(self):
+        self.assertEqual(sorted(self.ctx.skills), ['clip-youtube-video', 'create-podcast', 'create-tutorial', 'create-youtube-video', 'repair-captions'])
 
     def test_tool_reference_lists_exactly_the_registered_tools(self):
         import re
@@ -72,7 +72,7 @@ class RegisterTests(unittest.TestCase):
 
     def test_each_part_uses_its_own_data_folder(self):
         names = {p.STORAGE_NAMESPACE for p in suite.PARTS}
-        self.assertEqual(names, {'creator-studio-youtube', 'creator-studio-podcast', 'creator-studio-captions', 'creator-studio-tutorial'})
+        self.assertEqual(names, {'creator-studio-youtube', 'creator-studio-podcast', 'creator-studio-captions', 'creator-studio-tutorial', 'creator-studio-clips'})
 
 
 if __name__ == '__main__':

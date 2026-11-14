@@ -1,6 +1,6 @@
 name: creator-studio
-version: "0.4.2"
-description: "Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, and narrated step-by-step tutorials."
+version: "0.5.0"
+description: "Make media with Hermes from one request: researched lesson videos, two-host podcast episodes, captions for any recording, narrated step-by-step tutorials, and clips cut from a YouTube video or stream by reading its transcript."
 author: "Creator Studio contributors"
 license: GPL-3.0-or-later
 requires_hermes: ">=0.22.3"
@@ -95,6 +95,23 @@ provides_tools:
   - tutorial_speech_setup
   - tutorial_step
   - tutorial_frame
+  - clips_open
+  - clips_transcribe
+  - clips_use_transcript
+  - clips_outline
+  - clips_transcript
+  - clips_propose
+  - clips_cut
+  - clips_burn
+  - clips_frame
+  - clips_face
+  - clips_status
+  - clips_chat
+  - clips_join
+  - clips_post_facts
+  - clips_post_save
+  - clips_face_ranges
+  - clips_from_studio
 config_schema:
   native_image_tool: {type: str, default: "", description: "Optional registered native image-generation tool selected after resource discovery; host owns credentials/model. Main-agent direct image generation plus material_add remains available in other runtimes. No silent fallback."}
   asr_provider: {type: str, default: "", choices: ["", groq], description: "Which provider the asr_api_key belongs to. Only groq can be called directly; leave empty for your own configured endpoint. Set by you; the model cannot change it."}
@@ -110,6 +127,8 @@ config_schema:
   asr_decoder_command: {type: str, default: "", description: "Optional JSON array of arguments for your own audio decoder, with {media} and {audio}. Default uses FFmpeg."}
   asr_python: {type: str, default: "", description: "Optional path to a Python that has torch and transformers, used to run a cached Whisper model. Set by you."}
   asr_server_url: {type: str, default: "", description: "Optional http://127.0.0.1:PORT of a speech server on this computer to include in the setup scan."}
+  clip_ytdlp: {type: str, default: "", description: "Optional path to the yt-dlp program Clip Studio uses to read YouTube. Empty = the yt-dlp found on PATH. Set by you; the model cannot change it."}
+  clip_cookies_browser: {type: str, default: "", choices: ["", firefox, chrome, chromium, brave, edge, opera, vivaldi, safari], description: "Optional: the browser where you are signed in to YouTube, for videos YouTube shows only after a sign-in check. yt-dlp then reads that browser's YouTube cookies on this computer. Empty = no sign-in is used. Set by you; the model cannot change it."}
   camoufox_python: {type: str, default: "", description: "Path to the Python of the Camoufox browser install used for page research (YouTube and podcast parts). Set by you; the model cannot change it."}
   camoufox_browser: {type: str, default: "", description: "Optional path to the Camoufox browser executable. Set by you."}
   asr_api_key: {type: secret, env: CAPTION_STUDIO_ASR_KEY, required: false, label: "Selected speech service API key", description: "Optional. Used only when you explicitly select an HTTP recognizer with use_api_key. Local commands and imported transcripts need no key. Never paste keys into tool arguments."}

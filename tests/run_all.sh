@@ -8,7 +8,7 @@ $PY -m unittest discover -s tests -p 'test_register.py' || rc=1
 $PY -m unittest discover -s tests -p 'test_integrations.py' || rc=1
 $PY -m unittest discover -s tests -p 'test_resume.py' || rc=1
 $PY -m unittest discover -s tests -p 'test_speech_resources.py' || rc=1
-for part in youtube_studio podcast_studio caption_studio tutorial_creator; do
+for part in youtube_studio podcast_studio caption_studio tutorial_creator clip_studio; do
   (cd "$part" && $PY -m unittest discover -s tests) || rc=1
 done
 exit $rc

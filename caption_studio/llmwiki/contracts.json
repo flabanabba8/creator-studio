@@ -253,7 +253,7 @@
           },
           "apply_proposed": {
             "type": "boolean",
-            "description": "Also apply every clear proposal from captions_audio_propose (explicit decisions win for the same cue). Ambiguous and unchanged cues stay byte-for-byte original. Returns changed, left_unchanged and needs_human summaries; changes are alignment-backed, not listened to."
+            "description": "Also apply every clear proposal from captions_audio_propose (explicit decisions win for the same cue). Ambiguous and unchanged cues stay byte-for-byte original. Returns changed, left_unchanged and needs_human summaries; changes are alignment-backed, not listened to. The second recognizer can be the one that is wrong (names, slang, homophones such as tow and toe): read every entry in changed, show the user the ones that change a name or the meaning, and export again with explicit decisions that keep the original for any they reject."
           }
         },
         "required": [

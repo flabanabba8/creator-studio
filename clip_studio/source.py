@@ -1,7 +1,7 @@
 """Where the video comes from: YouTube through the user's own yt-dlp, or a recording already on this computer.
 
 Only the video page, its caption track, and the requested sections are fetched. Nothing is uploaded or published.
-The yt-dlp program and the browser whose sign-in it may read are owner settings; the model cannot supply either.
+The yt-dlp program is an owner setting; the model cannot supply it. No browser cookies or sign-in are ever used.
 """
 import json
 import os
@@ -13,7 +13,6 @@ from urllib.parse import parse_qs, urlsplit
 
 VIDEO_ID = re.compile(r'^[A-Za-z0-9_-]{11}$')
 HOSTS = {'youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be', 'www.youtube-nocookie.com'}
-BROWSERS = {'firefox', 'chrome', 'chromium', 'brave', 'edge', 'opera', 'vivaldi', 'safari'}
 PRIVATE = {'.ssh', '.gnupg', '.aws', '.azure', '.codex', '.docker', '.kube', '.pki', '.config'}
 ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'TEMP', 'TMP', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'SYSTEMROOT', 'WINDIR', 'XDG_CACHE_HOME',
        'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy')
@@ -72,10 +71,6 @@ class YouTube:
     def __init__(self, settings=None):
         settings = settings or {}
         self.program = settings.get('clip_ytdlp') or shutil.which('yt-dlp')
-        browser = str(settings.get('clip_cookies_browser') or '').strip().lower()
-        if browser and browser not in BROWSERS:
-            raise ValueError('The plugin setting clip_cookies_browser must be one of: ' + ', '.join(sorted(BROWSERS)))
-        self.browser = browser
         self.js = not shutil.which('deno') and bool(shutil.which('node'))
 
     def _run(self, args, cwd=None, timeout=180):
@@ -84,8 +79,6 @@ class YouTube:
         if not shutil.which('ffmpeg'):
             raise ValueError('Install ffmpeg and ffprobe')
         base = [self.program, '--ignore-config', '--no-playlist', '--no-progress', '--no-colors', '--socket-timeout', '30']
-        if self.browser:
-            base += ['--cookies-from-browser', self.browser]
         for extra in ([['--js-runtimes', 'node']] if self.js else []) + [[]]:
             try:
                 done = subprocess.run(base + extra + args, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=process_env(), timeout=timeout, check=False)
@@ -103,7 +96,7 @@ class YouTube:
         reason = re.sub(r'https?://\S+', '', lines[-1])[:300].strip() if lines else 'yt-dlp stopped without a reason'
         low = reason.lower()
         if 'sign in' in low or 'not a bot' in low or 'cookies' in low:
-            return 'YouTube asked for a sign-in before showing this video. The owner can set clip_cookies_browser (for example firefox) in the plugin settings so yt-dlp uses the browser where they are signed in. (%s)' % reason
+            return 'YouTube asked for a sign-in before showing this video, and Clip Studio never uses a sign-in or browser cookies. Download the video yourself and open it with media_path instead. (%s)' % reason
         if 'private video' in low or 'members-only' in low or 'unavailable' in low or 'removed' in low:
             return 'YouTube says this video is not available to you: %s' % reason
         return 'YouTube could not be read: %s. If this keeps happening, update yt-dlp; YouTube changes often.' % reason

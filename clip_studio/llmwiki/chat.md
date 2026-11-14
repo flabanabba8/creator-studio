@@ -64,8 +64,8 @@ which paid messages the streamer read aloud. It gives measurements only; it neve
   unreadable, it says yt-dlp may need updating.
 - Messages before the video start (negative offsets) are counted but not measured. At most 3 million messages are read.
 - Pinned banners, ticker copies, placeholders and membership gift redemptions are ignored.
-- Fetching uses the same yt-dlp, JavaScript runtime and cookie settings as the other Clip Studio tools (owner settings
-  `clip_ytdlp`, `clip_cookies_browser`). One request series per stream; `refresh=true` fetches again.
+- Fetching uses the same yt-dlp and JavaScript runtime as the other Clip Studio tools (owner setting
+  `clip_ytdlp`). One request series per stream; `refresh=true` fetches again.
 
 ## Marketplace disclosure sentence
 

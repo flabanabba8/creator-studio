@@ -48,7 +48,7 @@ TOOLS = {
         'project_id': PROJECT}, []),
 }
 
-OWNER_KEYS = ('clip_ytdlp', 'clip_cookies_browser')
+OWNER_KEYS = ('clip_ytdlp',)
 
 # Optional feature modules. Each has TOOLS (same shape as above) and handle(clips, name, args, ctx, **context) returning a dict.
 EXTENSIONS = ('recognize', 'chat', 'reel', 'publish', 'tracking', 'suite')
@@ -76,7 +76,7 @@ _load_extensions()
 
 
 def owner_settings(ctx):
-    """Plugin settings only the owner can set: the yt-dlp program and the browser whose YouTube sign-in it may use."""
+    """Plugin settings only the owner can set: the yt-dlp program."""
     get = getattr(ctx, 'get_config', None)
     out = {}
     for key in OWNER_KEYS:

@@ -44,8 +44,9 @@ Tool texts: [suite tool reference](../../llmwiki/tools.md). Task guide: [task-gu
 - yt-dlp needs a JavaScript runtime for full YouTube support (Deno by default; the plugin passes
   `--js-runtimes node` when only Node is installed). Without one, speech-recognized tracks may come
   as VTT instead of json3; both are parsed.
-- A sign-in check ("confirm you are not a bot") can only be passed with the owner setting
-  `clip_cookies_browser`. Never ask for cookies, passwords or tokens in chat.
+- A sign-in check ("confirm you are not a bot") cannot be passed: Clip Studio never uses browser
+  cookies or a sign-in. The user can download the video themselves and open it with `media_path`.
+  Never ask for cookies, passwords or tokens in chat.
 - Live: a finished stream is an ordinary video once YouTube has processed it. A stream still on air
   has no finished captions and section downloads are unreliable; the plugin refuses to cut it.
 - Limits: one video per project, clips of 2 seconds to 15 minutes, 10 clips per cut call, 60 per project,
@@ -57,5 +58,5 @@ Live-checked on Linux on 2026-11-13 with yt-dlp 2026.08.19 (see the suite VERIFI
 video with uploader captions, outline, reading, search, proposing, cutting as filmed and vertical
 with burned captions, a 57 s clip with one skipped stretch and pause removal, and a recognizer check that
 each clip starts and ends on the intended words and that the trimmed clip's speech runs on correctly.
-Not checked: a stream on air, the sign-in setting, `clips_transcribe` through a real recognizer,
+Not checked: a stream on air, `clips_transcribe` through a real recognizer,
 a run through a Hermes session, Windows and macOS.

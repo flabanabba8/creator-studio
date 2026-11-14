@@ -35,7 +35,7 @@ Exact request ("cut 12:30 to 13:10"): `clips_open`, `clips_propose` with `exact:
 | What you see | Cause | What to do |
 |---|---|---|
 | "yt-dlp was not found" | Not installed or not on PATH | User installs it or sets `clip_ytdlp`; or opens a local recording with `media_path` |
-| "YouTube asked for a sign-in" | Bot check, age or region gate | Owner sets `clip_cookies_browser`; do not ask for credentials |
+| "YouTube asked for a sign-in" | Bot check, age or region gate | Not supported (no cookies or sign-in are used); the user downloads the video and opens it with `media_path`; do not ask for credentials |
 | "not available to you" | Private, removed, members-only | Nothing to do without access; say so |
 | "YouTube could not be read ... update yt-dlp" | YouTube changed, yt-dlp is old | User updates yt-dlp |
 | `no_captions` in the open result | No uploader or recognized captions | `clips_transcribe` (user's recognizer) or `clips_use_transcript` |

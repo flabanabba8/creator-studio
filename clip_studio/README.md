@@ -29,7 +29,7 @@ Give Hermes a YouTube link and say what you want: "find the best moments for Sho
 
 - `yt-dlp` on your computer for YouTube links (not installed by the plugin; keep it up to date, YouTube changes often), and a JavaScript runtime that yt-dlp supports (Deno, or Node, which the plugin selects when Deno is missing).
 - FFmpeg and ffprobe.
-- Optional owner settings: `clip_ytdlp` (path to the program) and `clip_cookies_browser` (the browser where you are signed in to YouTube, only for videos YouTube shows after a sign-in check). The model cannot set either.
+- Optional owner setting: `clip_ytdlp` (path to the program). The model cannot set it. Clip Studio never uses browser cookies or a YouTube sign-in; for a video that needs one, download it yourself and open it with `media_path`.
 
 ## What goes over the internet
 
